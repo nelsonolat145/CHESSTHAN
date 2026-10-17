@@ -26,7 +26,7 @@ const provider=new GoogleAuthProvider(); const authInfo=document.getElementById(
 authBtn.onclick=async()=>{ if(currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
 onAuthStateChanged(auth,async(u)=>{ currentUser=u; if(u){authInfo.innerHTML=u.displayName; authBtn.textContent='Sign Out'; await loadCredits(); loadHistory();}else{authInfo.textContent='Sign Gmail to withdraw'; authBtn.textContent='Sign Gmail';}});
 async function loadCredits(){
- const {doc,getDoc,db}=window._fb; let snap=await getDoc(doc(db,'chessbyethan_users',currentUser.uid)); if(snap.exists()) credits=snap.data().credits||parseInt(localStorage.getItem('ethan_credits')||'0'); else credits=parseInt(localStorage.getItem('ethan_credits')||'0');
+ const {doc,getDoc,db}=window._fb; let snap=await getDoc(doc(db,'chessbyethan_users',currentUser.uid)); if(snap.exists() && typeof snap.data().credits === 'number') credits=snap.data().credits; else credits=parseInt(localStorage.getItem('ethan_credits')||'500'); if(snap.exists() && snap.data().credits===undefined){ try{await setDoc(doc(db,'chessbyethan_users',currentUser.uid),{credits:credits},{merge:true});}catch(e){} }
  document.getElementById('credits').innerText=credits; document.getElementById('naira').innerText=(credits*0.1).toFixed(0);
 }
 </script>
