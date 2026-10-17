@@ -51,35 +51,53 @@ onAuthStateChanged(auth,async(u)=>{
     try{
       let snap=await getDoc(doc(db,'chessbyethan_users',u.uid));
       let credits;
-      if(snap.exists() && typeof snap.data().credits === 'number'){
+      let localCred = safeCredits(localStorage.getItem('ethan_credits'), 500);
+      if(snap.exists() && typeof snap.data().credits === 'number' && !isNaN(snap.data().credits)){
         credits=snap.data().credits;
         localStorage.setItem('ethan_credits',credits);
-      }else if(snap.exists() && snap.data().credits===undefined){
-        // doc exists but no credits field yet - use local or 500
-        credits=parseInt(localStorage.getItem('ethan_credits')||'500');
+      }else if(snap.exists()){
+        credits=localCred;
         await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits},{merge:true});
       }else{
-        credits=parseInt(localStorage.getItem('ethan_credits')||'500');
+        credits=localCred;
         await setDoc(doc(db,'chessbyethan_users',u.uid),{displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,createdAt:serverTimestamp(),lastLogin:serverTimestamp()},{merge:true});
       }
       updateWallet(credits);
       document.getElementById('syncStatus').innerText='Cloud Synced ✓';
-    }catch(e){ console.log(e); let c=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c); }
+    }catch(e){ console.log(e); let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c); }
   }else{
     authInfo.textContent='Not signed - Local only'; authBtn.textContent='Sign Gmail';
-    let c=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c);
+    let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c);
     document.getElementById('syncStatus').innerText='Local only - Sign Gmail to sync';
   }
 });
 </script>
 <script>
 const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
-function updateWallet(credits){ document.getElementById('creditBal').innerText=credits; document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0); }
+
+function safeCredits(val, fallback=500){
+  let n = parseInt(val);
+  if(isNaN(n) || val === undefined || val === null || String(val).toLowerCase()==='undefined' || String(val).toLowerCase()==='nan') return fallback;
+  return n;
+}
+function updateWallet(credits){
+  credits = safeCredits(credits, 500);
+  document.getElementById('creditBal').innerText=credits;
+  document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0);
+}
+function clearBadStorage(){
+  let v = localStorage.getItem('ethan_credits');
+  if(v===null || v==='undefined' || v==='NaN' || isNaN(parseInt(v))){
+    localStorage.setItem('ethan_credits','500');
+  }
+}
+clearBadStorage();
+
 function buyCredits(){
   let n=prompt('Buy: 500,1000,2500,5000 Naira (e.g. 500)'); if(!n)return; n=parseInt(n); if(![500,1000,2500,5000].includes(n)) return alert('Choose 500/1000/2500/5000');
   let c=n*10; let email=window._currentUser?window._currentUser.email:'player@ethan.com';
   let handler=PaystackPop.setup({key:PAYSTACK_KEY,email:email,amount:n*100,currency:'NGN',ref:'EMPIRE_'+Date.now(),callback:async function(r){
-    let current=parseInt(localStorage.getItem('ethan_credits')||'0'); let newC=current+c; localStorage.setItem('ethan_credits',newC); updateWallet(newC);
+    let current=safeCredits(localStorage.getItem('ethan_credits'),0); let newC=current+c; localStorage.setItem('ethan_credits',newC); updateWallet(newC);
     if(window._currentUser && window._fb){
       try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); document.getElementById('syncStatus').innerText='Cloud Synced ✓ +'+c; }catch(e){}
     }
@@ -88,5 +106,5 @@ function buyCredits(){
   handler.openIframe();
 }
 function go(f){ window.location.href=f; }
-let c0=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c0);
+let c0=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c0);
 </script></body></html>
