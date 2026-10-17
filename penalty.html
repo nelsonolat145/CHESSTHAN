@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <title>PENALTY SHOOTOUT - Black & Gold</title>
@@ -125,6 +167,49 @@ body{background:var(--black);color:var(--gold);overflow-x:hidden;min-height:100v
 </div>
 
 <script type="module">
+// ===== FIXED WALLET LOGIC - ETHAN EMPIRE =====
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+// ===== END FIXED WALLET LOGIC =====
+
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, serverTimestamp } from "firebase/firestore";
@@ -144,7 +229,8 @@ const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
 let currentUser = null;
-let wallet = parseInt(localStorage.getItem('ethan_credits')||'1000',10);
+let wallet = getCredits();
+let ETHAN_CREDITS_SYNC = wallet;
 let stake = 500;
 let mode = 'local'; // local | online
 let roomCode = null;
@@ -155,7 +241,21 @@ const creditVal = document.getElementById('creditVal');
 const potVal = document.getElementById('potVal');
 const logEl = document.getElementById('log');
 
-function saveWallet(){ localStorage.setItem('ethan_credits', wallet.toString()); creditVal.textContent = wallet; const players = mode==='local'?2:(roomData?.players?.length||1); potVal.textContent = stake*players; }
+function saveWallet(){
+  // Sync wallet var from safe storage
+  wallet = getCredits();
+  try{ creditVal.textContent = wallet; }catch(e){}
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=wallet;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=wallet;
+    let el3=document.getElementById('creditVal'); if(el3) el3.textContent=wallet;
+  }catch(e){}
+  const players = mode==='local'?2:(roomData?.players?.length||1);
+  potVal.textContent = stake*players;
+  return wallet;
+}
+function syncWalletDisplay(){ wallet=getCredits(); try{ creditVal.textContent=wallet; }catch(e){} }
+
 function log(msg){ const d=document.createElement('div'); d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`; logEl.prepend(d); }
 
 saveWallet();
@@ -192,7 +292,8 @@ window.buyCredits = function(amount){
     amount: amount*100,
     currency: "NGN",
     callback: function(response){
-      wallet += amount;
+      let newBal = addCredits(amount);
+      wallet = newBal;
       saveWallet();
       log(`Credits purchased +${amount} (${response.reference})`);
     },
@@ -389,6 +490,19 @@ window.nextKick = function(){
 
 function endGame(){
   const a=game.scores[0], b=game.scores[1];
+  // Local mode winnings: add 90% pot as reward using addCredits
+  if(mode==='local' && !roomData){
+    try{
+      let pot = stake * 2;
+      // Only reward if not draw, using safe addCredits
+      if(a!==b){
+        let winReward = Math.floor(pot*0.9);
+        let nb = addCredits(winReward);
+        wallet = nb;
+        log(`+${winReward} credits won! (local pot ${pot})`);
+      }
+    }catch(e){}
+  }
   let winnerIdx = a>b?0: b>a?1:-1;
   document.getElementById('finalText').textContent = winnerIdx===-1?'DRAW!': (winnerIdx===0?'GOLDEN WINS!':'BLACK WINS!');
   document.getElementById('finalSub').textContent = `Final ${a}-${b}`;
@@ -402,6 +516,12 @@ function endGame(){
 }
 
 window.resetGame = function(){
+  // Local entry fee check - ensure player has credits (optional stake for local)
+  if(mode==='local'){
+    // For local 2P, we don't mandatory deduct, but ensure balance is valid
+    wallet = getCredits();
+    if(wallet < 1){ setCredits(500); wallet=getCredits(); }
+  }
   document.getElementById('gameOverOverlay').classList.remove('show');
   document.getElementById('resultOverlay').classList.remove('show');
   game = {kickIndex:0, strikerChoice:null, keeperChoice:null, scores:[0,0], records:[[],[]], phase:'striker', over:false, stake:stake, players:mode==='local'?2:2 };
@@ -416,13 +536,15 @@ window.claimWinnings = function(){
   const winner = roomData.winner;
   if(winner && winner===currentUser.uid){
     const winAmt = Math.floor(roomData.stake*2*0.9);
-    wallet += winAmt;
+    let newBal = addCredits(winAmt);
+    wallet = newBal;
     saveWallet();
     log(`Claimed ${winAmt} credits! Pot was ${roomData.stake*2}`);
     document.getElementById('claimBtn').style.display='none';
   } else if(roomData.status==='finished' && !roomData.winner){
-    // draw refund
-    wallet += roomData.stake;
+    // draw refund - safe refund using addCredits
+    let refundBal = addCredits(roomData.stake);
+    wallet = refundBal;
     saveWallet();
     log('Draw refunded stake');
   }
@@ -447,10 +569,12 @@ function switchMode(m){
 
 async function createRoom(){
   if(!currentUser){ alert('Login with Gmail to create room'); return; }
-  if(wallet<stake){ alert('Not enough credits to stake'); return; }
+  if(getCredits()<stake){ alert('Not enough credits to stake'); return; }
   const code = genCode();
   const ref = doc(db,'penalty_rooms',code);
-  wallet -= stake; saveWallet();
+  if(!deductCredits(stake)){ return; }
+  wallet = getCredits();
+  saveWallet();
   await setDoc(ref,{
     code, stake, status:'waiting',
     players:[currentUser.uid],
@@ -477,9 +601,11 @@ async function joinRoom(code){
   if(!snap.exists()){ alert('Room not found'); return; }
   const data = snap.data();
   if(data.players.length>=2 && !data.players.includes(currentUser.uid)){ alert('Room full'); return; }
-  if(wallet<data.stake){ alert('Not enough credits'); return; }
+  if(getCredits()<data.stake){ alert('Not enough credits'); return; }
   if(!data.players.includes(currentUser.uid)){
-    wallet -= data.stake; saveWallet();
+    if(!deductCredits(data.stake)){ return; }
+    wallet = getCredits();
+    saveWallet();
     await updateDoc(ref,{players:[...data.players, currentUser.uid], playerNames:[...data.playerNames, currentUser.displayName||currentUser.email], status:'playing'});
   }
   roomCode=code; listenRoom(code);

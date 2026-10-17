@@ -1,0 +1,50 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>REFERRAL - ETHAN EMPIRE</title>
+<script>
+function safeCredits(v,f){ if(f===undefined) f=500; if(v===undefined||v===null) return f; let s=String(v).trim().toLowerCase(); if(s==='undefined'||s==='nan'||s==='') return f; let n=parseInt(v); return isNaN(n)?f:n; }
+(function(){ let v=localStorage.getItem('ethan_credits'); if(!v||['undefined','nan',''].includes(String(v).toLowerCase())||isNaN(parseInt(v))) localStorage.setItem('ethan_credits','500'); })();
+</script>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
+<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center} .card{background:#121212;border:1px solid #00ff88;border-radius:16px;padding:14px;margin:10px auto;max-width:600px;text-align:left} .card.center{text-align:center} .btn{background:#00ff88;color:#000;padding:12px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:8px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} input{width:100%;padding:12px;background:#222;border:1px solid #444;color:#fff;border-radius:10px;margin-top:8px;box-sizing:border-box} table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid #333;padding:6px} th{background:#222;color:#00ff88}</style></head><body>
+<h1>👥 INVITE FRIENDS = ₦10 EACH</h1>
+<div class="card center" style="display:flex;justify-content:space-between"><span id="authInfo">Checking...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card center"><h2 style="color:#00ff88">How Referral Works</h2><div style="text-align:left;font-size:13px;line-height:1.6">
+1. Share your referral link<br>
+2. Friend clicks link → Signs Gmail on hub<br>
+3. You both get <b>100 credits = ₦10</b> instantly<br>
+4. No limit — invite 100 friends = 10,000 credits = ₦1,000<br>
+5. Friend must play at least 1 game to confirm
+</div></div>
+<div class="card center"><h3>Your Referral Link</h3><input id="refLink" readonly><button class="btn" onclick="copyRef()">Copy Link</button><button class="btn-s" onclick="shareWhatsApp()">Share via WhatsApp</button>
+<div style="margin-top:10px">Code: <b id="refCode">-</b> | Invited: <b id="refCount">0</b> | Earned: <b id="refEarned">0</b> credits = ₦<b id="refNaira">0</b></div></div>
+<div class="card"><h3>My Invited Friends</h3><div style="overflow-x:auto"><table><thead><tr><th>Friend</th><th>Date</th><th>Bonus</th></tr></thead><tbody id="refBody"><tr><td colspan=3>Login to see invites</td></tr></tbody></table></div></div>
+<script type="module">
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, serverTimestamp } from "firebase/firestore";
+const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
+window._fb={auth,db,doc,getDoc,collection,query,where,getDocs,orderBy,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+const provider=new GoogleAuthProvider(); const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn'); let currentUser=null;
+authBtn.onclick=async()=>{ if(currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
+onAuthStateChanged(auth,async(u)=>{ currentUser=u; window._currentUser=u; if(u){ authInfo.innerText=u.displayName; authBtn.innerText='Sign Out'; await loadRef(); }else{ authInfo.innerText='Sign Gmail to get referral link'; authBtn.innerText='Sign Gmail'; } });
+async function loadRef(){
+  let snap=await getDoc(doc(db,'chessbyethan_users',currentUser.uid)); let data=snap.data()||{}; let code=data.referralCode||currentUser.uid.substring(0,6).toUpperCase();
+  document.getElementById('refCode').innerText=code;
+  document.getElementById('refCount').innerText=data.referralCount||0;
+  document.getElementById('refEarned').innerText=data.referralEarned||0;
+  document.getElementById('refNaira').innerText=((data.referralEarned||0)*0.1).toFixed(0);
+  let link='https://nelsonolat145.github.io/CHESSTHAN/?ref='+code; document.getElementById('refLink').value=link;
+  // Load invited list
+  let q=query(collection(db,'ethan_referrals'),where('to','==',currentUser.uid),orderBy('createdAt','desc'));
+  try{
+    let qs=await getDocs(q);
+    let body=document.getElementById('refBody'); body.innerHTML='';
+    if(qs.empty){ body.innerHTML='<tr><td colspan=3>No invites yet - share link!</td></tr>'; return; }
+    qs.forEach(d=>{ let dd=d.data(); let t=dd.createdAt?.toDate?dd.createdAt.toDate().toLocaleDateString():''; body.innerHTML+=`<tr><td>${dd.fromEmail||dd.from}</td><td>${t}</td><td>+100</td></tr>`; });
+  }catch(e){ document.getElementById('refBody').innerHTML='<tr><td colspan=3>Share link to see invites (need index)</td></tr>'; }
+}
+</script>
+<script>
+function copyRef(){ let el=document.getElementById('refLink'); el.select(); navigator.clipboard.writeText(el.value).then(()=>alert('Copied! Share on WhatsApp to earn')).catch(()=>{document.execCommand('copy'); alert('Copied!');}); }
+function shareWhatsApp(){ let link=document.getElementById('refLink').value; let txt=encodeURIComponent('Play and win real money on Ethan Empire! Use my link to get 100 free credits: '+link); window.open('https://wa.me/?text='+txt,'_blank'); }
+</script></body></html>

@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ETHAN EMPIRE - 12 Games + Withdraw</title>
+<title>ETHAN EMPIRE - 12 Games + Withdraw + Referral + Leaderboard</title>
 <script>
-// GLOBAL SAFE FUNCTIONS - Must be first
+// GLOBAL SAFE WALLET - Must be first, fixes NaN forever
 function safeCredits(val, fallback){
   if(fallback===undefined) fallback=500;
   if(val===undefined||val===null) return fallback;
@@ -15,6 +15,7 @@ function updateWallet(credits){
   credits=safeCredits(credits,500);
   let el=document.getElementById('creditBal'); if(el) el.innerText=credits;
   let el2=document.getElementById('nairaBal'); if(el2) el2.innerText=(credits*0.1).toFixed(0);
+  let el3=document.getElementById('walletBal'); if(el3) el3.innerText=credits;
 }
 (function(){
   let v=localStorage.getItem('ethan_credits');
@@ -26,40 +27,55 @@ function updateWallet(credits){
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center}h1{font-size:24px;text-shadow:0 0 15px #FFD700} .container{max-width:750px;margin:0 auto} .card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px 0} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media(min-width:600px){.grid{grid-template-columns:1fr 1fr 1fr}} .game-card{background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:2px solid #FFD700;border-radius:14px;padding:12px;cursor:pointer} .game-card:hover{transform:translateY(-3px);box-shadow:0 0 20px #FFD700} .wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;font-weight:900} .badge{background:#222;border:1px solid #444;padding:3px 8px;border-radius:10px;font-size:8px} .badge.hot{background:#c0392b;color:#fff} .auth-bar{display:flex;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:10px;padding:8px;margin-bottom:8px} .action-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}</style></head><body>
+<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center}h1{font-size:24px;text-shadow:0 0 15px #FFD700} .container{max-width:800px;margin:0 auto} .card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px 0;text-align:left} .card.center{text-align:center} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media(min-width:600px){.grid{grid-template-columns:1fr 1fr 1fr}} .game-card{background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:2px solid #FFD700;border-radius:14px;padding:12px;cursor:pointer;text-align:center} .game-card:hover{transform:translateY(-3px);box-shadow:0 0 20px #FFD700} .wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;font-weight:900} .badge{background:#222;border:1px solid #444;padding:3px 8px;border-radius:10px;font-size:8px} .badge.hot{background:#c0392b;color:#fff} .auth-bar{display:flex;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:10px;padding:8px;margin-bottom:8px} .action-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0} table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid #333;padding:6px;text-align:left} th{background:#222;color:#FFD700} input{width:100%;padding:10px;background:#222;border:1px solid #444;color:#fff;border-radius:8px;margin-top:6px;box-sizing:border-box}</style></head><body>
 <h1>👑 ETHAN EMPIRE - 12 GAMES 👑</h1>
 <div class="container">
 <div class="auth-bar"><span id="authInfo">Checking Gmail...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
-<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Local 500</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
-<div class="card"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw to Bank</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('admin_withdrawals.html')">🔐 Admin Panel</button><button class="btn-s" onclick="buyCredits()">🛒 Buy Credits</button></div><div style="font-size:10px;opacity:.7;margin-top:6px">Min withdraw 5000 credits = ₦500 • Paid within 24h</div></div>
-<h3>♟ BOARD</h3>
-<div class="grid">
-<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b></div>
-<div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b></div>
-<div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED</small></div>
-<div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED</small></div>
-<div class="game-card" onclick="go('scrabble.html')"><div style="font-size:30px">🔤</div><b>SCRABBLE</b></div>
-<div class="game-card" onclick="go('snake.html')"><div style="font-size:30px">🐍</div><b>SNAKE</b><br><small>FIXED</small></div>
+<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Checking cloud...</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
+
+<div class="card center"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('leaderboard.html')">🏆 Leaderboard</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #00ff88" onclick="go('referral.html')">👥 Invite +100</button></div>
+<div style="font-size:10px;opacity:.7;margin-top:6px">Invite friend = you both get 100 credits = ₦10 • Min withdraw 5000 credits = ₦500</div>
 </div>
+
+<!-- REFERRAL CARD -->
+<div class="card center" id="refCard" style="display:none;border-color:#00ff88"><h3 style="color:#00ff88;margin:4px">👥 YOUR REFERRAL LINK</h3><div style="font-size:11px">Share and earn 100 credits per friend who signs up & plays</div>
+<input id="refLink" readonly style="font-size:10px"><button class="btn" style="background:#00ff88;color:#000" onclick="copyRef()">Copy Referral Link</button>
+<div style="font-size:11px;margin-top:6px">Your Code: <b id="refCode">-</b> • Invited: <b id="refCount">0</b> friends • Earned: <b id="refEarned">0</b> credits</div></div>
+
+<!-- LEADERBOARD PREVIEW -->
+<div class="card center"><h3 style="margin:4px">🏆 TOP WINNERS TODAY</h3><div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Player</th><th>Credits</th><th>Won</th></tr></thead><tbody id="lbBody"><tr><td colspan="4">Sign Gmail to see leaderboard</td></tr></tbody></table></div><button class="btn-s" onclick="go('leaderboard.html')">View Full Leaderboard</button></div>
+
+<h3>♟ BOARD - Most Money</h3>
+<div class="grid">
+<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b><br><small>Black vs Golden</small><br><span class="badge hot">HOT</span></div>
+<div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b><br><small>Naija Checkers</small><br><span class="badge hot">HOT</span></div>
+<div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED</small><br><span class="badge hot">VIRAL</span></div>
+<div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED</small><br><span class="badge">Culture</span></div>
+<div class="game-card" onclick="go('scrabble.html')"><div style="font-size:30px">🔤</div><b>SCRABBLE</b><br><small>Word Bingo</small><br><span class="badge">Word</span></div>
+<div class="game-card" onclick="go('snake.html')"><div style="font-size:30px">🐍</div><b>SNAKE</b><br><small>FIXED</small><br><span class="badge">Kids</span></div>
+</div>
+
 <h3>⚽ SOCCER + RACING + CARDS</h3>
 <div class="grid">
-<div class="game-card" onclick="go('penalty.html')"><div style="font-size:30px">🥅</div><b>PENALTY</b></div>
-<div class="game-card" onclick="go('soccer.html')"><div style="font-size:30px">⚽</div><b>FREE KICK</b></div>
-<div class="game-card" onclick="go('headball.html')"><div style="font-size:30px">🤾</div><b>HEAD SOCCER</b></div>
-<div class="game-card" onclick="go('racing.html')"><div style="font-size:30px">🏁</div><b>RACING</b></div>
-<div class="game-card" onclick="go('whot.html')"><div style="font-size:30px">🃏</div><b>WHOT</b></div>
-<div class="game-card" onclick="go('quiz.html')"><div style="font-size:30px">🧠</div><b>QUIZ</b></div>
+<div class="game-card" onclick="go('penalty.html')"><div style="font-size:30px">🥅</div><b>PENALTY</b><br><small>9 zones</small></div>
+<div class="game-card" onclick="go('soccer.html')"><div style="font-size:30px">⚽</div><b>FREE KICK</b><br><small>Wind + Power</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('headball.html')"><div style="font-size:30px">🤾</div><b>HEAD SOCCER</b><br><small>60s Match</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('racing.html')"><div style="font-size:30px">🏁</div><b>RACING</b><br><small>3 Laps</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('whot.html')"><div style="font-size:30px">🃏</div><b>WHOT</b><br><small>FIXED</small><br><span class="badge hot">ADDICT</span></div>
+<div class="game-card" onclick="go('quiz.html')"><div style="font-size:30px">🧠</div><b>QUIZ</b><br><small>Trivia</small></div>
 </div>
-<div class="card" style="font-size:10px;opacity:.7">Paystack LIVE • Firebase chessbyethan • 12 games</div>
+
+<div class="card center" style="font-size:10px;opacity:.7">Paystack LIVE • Firebase chessbyethan • 12 games • Referral +100 • Leaderboard live • Winner 90% • Admin: <a href="#" onclick="go('admin_withdrawals.html')" style="color:#FFD700">Panel</a></div>
 </div>
 <script type="module">
-import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, serverTimestamp, updateDoc, increment } from "firebase/firestore";
 const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
 const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
-window._fb={auth,db,doc,getDoc,setDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+window._fb={auth,db,doc,getDoc,setDoc,collection,query,orderBy,limit,getDocs,where,serverTimestamp,updateDoc,increment,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
 const provider=new GoogleAuthProvider();
 const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn');
 let currentUser=null;
+function getRefFromUrl(){ try{ let u=new URL(window.location.href); return u.searchParams.get('ref'); }catch(e){ return null; } }
 authBtn.onclick=async()=>{ if(currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
 onAuthStateChanged(auth,async(u)=>{
   currentUser=u; window._currentUser=u;
@@ -67,30 +83,100 @@ onAuthStateChanged(auth,async(u)=>{
     authInfo.innerHTML=u.displayName+' ✓'; authBtn.textContent='Sign Out';
     try{
       let snap=await getDoc(doc(db,'chessbyethan_users',u.uid));
-      let credits=500;
-      let localCred=safeCredits(localStorage.getItem('ethan_credits'),500);
+      let credits=500; let localCred=safeCredits(localStorage.getItem('ethan_credits'),500);
+      let refCodeParam=getRefFromUrl();
+      let referralCode = (u.uid.substring(0,6).toUpperCase());
       if(snap.exists()){
         let data=snap.data();
-        if(data.credits!==undefined && data.credits!==null && !isNaN(parseInt(data.credits))){
-          credits=safeCredits(data.credits,500);
+        credits = (data.credits!==undefined && data.credits!==null && !isNaN(parseInt(data.credits))) ? safeCredits(data.credits,500) : localCred);
+        // Ensure referralCode exists
+        if(!data.referralCode){
+          await setDoc(doc(db,'chessbyethan_users',u.uid),{referralCode:referralCode},{merge:true});
         }else{
-          credits=localCred;
-          await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits},{merge:true});
+          referralCode=data.referralCode;
+        }
+        // Handle referral bonus for new user (only once)
+        if(!data.referredBy && refCodeParam && refCodeParam!==referralCode){
+          // Find referrer
+          let q=query(collection(db,'chessbyethan_users'),where('referralCode','==',refCodeParam),limit(1));
+          let qs=await getDocs(q);
+          if(!qs.empty){
+            let refDoc=qs.docs[0];
+            let refUid=refDoc.id;
+            // Give both 100 credits, mark referred
+            credits+=100;
+            await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits,referredBy:refCodeParam,referredByUid:refUid,referralCode:referralCode},{merge:true});
+            // Give referrer 100
+            await updateDoc(doc(db,'chessbyethan_users',refUid),{credits: increment(100), referralCount: increment(1), referralEarned: increment(100)});
+            // Log referral
+            await setDoc(doc(collection(db,'ethan_referrals')),{from:u.uid,fromEmail:u.email,to:refUid,code:refCodeParam,createdAt:serverTimestamp()});
+            alert('🎉 Referral bonus! +100 credits from '+refCodeParam);
+          }
         }
       }else{
         credits=localCred;
-        await setDoc(doc(db,'chessbyethan_users',u.uid),{displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,createdAt:serverTimestamp(),lastLogin:serverTimestamp()},{merge:true});
+        let payload={displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,referralCode:referralCode,referralCount:0,referralEarned:0,totalWon:0,createdAt:serverTimestamp(),lastLogin:serverTimestamp()};
+        let rParam=getRefFromUrl();
+        if(rParam && rParam!==referralCode){ payload.referredBy=rParam; }
+        await setDoc(doc(db,'chessbyethan_users',u.uid),payload,{merge:true});
+        // If referred, give referrer bonus (same logic as above)
+        if(rParam && rParam!==referralCode){
+          let q=query(collection(db,'chessbyethan_users'),where('referralCode','==',rParam),limit(1));
+          let qs=await getDocs(q);
+          if(!qs.empty){
+            let refDoc=qs.docs[0]; let refUid=refDoc.id;
+            await updateDoc(doc(db,'chessbyethan_users',refUid),{credits: increment(100), referralCount: increment(1), referralEarned: increment(100)});
+            await updateDoc(doc(db,'chessbyethan_users',u.uid),{credits: increment(100)});
+            credits+=100;
+            alert('🎉 Welcome! +100 referral bonus from '+rParam);
+          }
+        }
       }
       localStorage.setItem('ethan_credits',String(credits));
       updateWallet(credits);
-      let st=document.getElementById('syncStatus'); if(st) st.innerText='Cloud Synced ✓ '+credits;
+      document.getElementById('syncStatus').innerText='Cloud Synced ✓ '+credits+' • Ref: '+referralCode;
+      // Show referral card
+      showReferral(referralCode, u.uid);
+      loadLeaderboardPreview();
     }catch(e){ console.error(e); let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c); }
   }else{
     authInfo.textContent='Not signed - Local only'; authBtn.textContent='Sign Gmail';
     let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c);
-    let st=document.getElementById('syncStatus'); if(st) st.innerText='Local only - Sign Gmail to sync';
+    document.getElementById('syncStatus').innerText='Local only - Sign Gmail for referral + leaderboard';
+    document.getElementById('lbBody').innerHTML='<tr><td colspan=4>Sign Gmail to see live leaderboard</td></tr>';
   }
 });
+async function showReferral(code, uid){
+  try{
+    let snap=await getDoc(doc(db,'chessbyethan_users',uid));
+    let data=snap.data()||{};
+    let count=data.referralCount||0; let earned=data.referralEarned||0;
+    document.getElementById('refCode').innerText=code;
+    document.getElementById('refCount').innerText=count;
+    document.getElementById('refEarned').innerText=earned;
+    let link=window.location.origin+window.location.pathname+'?ref='+code;
+    // For github pages, pathname includes /CHESSTHAN/
+    if(!link.includes('CHESSTHAN')) link='https://nelsonolat145.github.io/CHESSTHAN/?ref='+code;
+    else link='https://nelsonolat145.github.io/CHESSTHAN/?ref='+code;
+    document.getElementById('refLink').value=link;
+    document.getElementById('refCard').style.display='block';
+  }catch(e){}
+}
+async function loadLeaderboardPreview(){
+  try{
+    let q=query(collection(db,'chessbyethan_users'),orderBy('credits','desc'),limit(5));
+    let qs=await getDocs(q);
+    let body=document.getElementById('lbBody'); body.innerHTML='';
+    let i=1;
+    qs.forEach(d=>{
+      let data=d.data();
+      let name=(data.displayName||data.email||'Player').substring(0,12);
+      body.innerHTML+=`<tr><td>${i}</td><td>${name}</td><td>${safeCredits(data.credits,0)}</td><td>${safeCredits(data.totalWon||data.referralEarned||0,0)}</td></tr>`;
+      i++;
+    });
+    if(body.innerHTML==='') body.innerHTML='<tr><td colspan=4>No players yet</td></tr>';
+  }catch(e){ console.error(e); }
+}
 </script>
 <script>
 const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
@@ -100,12 +186,13 @@ function buyCredits(){
   let handler=PaystackPop.setup({key:PAYSTACK_KEY,email:email,amount:n*100,currency:'NGN',ref:'EMPIRE_'+Date.now(),callback:async function(r){
     let current=safeCredits(localStorage.getItem('ethan_credits'),0); let newC=current+c; localStorage.setItem('ethan_credits',String(newC)); updateWallet(newC);
     if(window._currentUser && window._fb){
-      try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); let st=document.getElementById('syncStatus'); if(st) st.innerText='Cloud Synced ✓ +'+c; }catch(e){}
+      try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); document.getElementById('syncStatus').innerText='Cloud Synced ✓ +'+c; }catch(e){}
     }
     alert('Success! +'+c+' credits Ref '+r.reference);
   }});
   handler.openIframe();
 }
 function go(f){ window.location.href=f; }
+function copyRef(){ let el=document.getElementById('refLink'); el.select(); el.setSelectionRange(0,99999); navigator.clipboard.writeText(el.value).then(()=>alert('Copied! Share to earn 100 credits per friend')).catch(()=>{ document.execCommand('copy'); alert('Copied!'); }); }
 let c0=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c0);
 </script></body></html>

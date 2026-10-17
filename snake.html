@@ -1,305 +1,122 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>🐍 SNAKE LADDER - BLACK GOLD NEAT FIXED - INSTANT PLAY</title>
+
+<!DOCTYPE html><html><head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SNAKE LADDER FIXED</title>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#000;color:#FFD700;font-family:system-ui,Segoe UI,Arial Black,sans-serif;min-height:100vh;padding:10px}
-h1{font-size:24px;text-align:center;font-weight:900;letter-spacing:1px;text-shadow:0 0 14px #FFD700,0 0 28px #FFD700;margin:12px 0}
-.card{background:linear-gradient(145deg,#121212,#1e1e1e);border:3px solid #FFD700;border-radius:16px;padding:14px;margin:10px auto;max-width:780px;box-shadow:0 0 22px rgba(255,215,0,.4),inset 0 1px 0 rgba(255,255,255,.08)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.btn{cursor:pointer;font-weight:900;border-radius:12px;padding:14px 18px;font-size:16px;border:none;transition:.15s;box-shadow:0 4px 12px rgba(0,0,0,.6),0 0 12px rgba(255,215,0,.25)}
-.btn:active{transform:scale(.97)}
-.btn-gold{background:linear-gradient(#FFD700,#FFC000);color:#000;border:3px solid #000;box-shadow:0 0 18px #FFD700,0 4px 0 #b89600}
-.btn-black{background:#000;color:#FFD700;border:3px solid #FFD700}
-.btn-s{flex:1;min-width:70px;background:#222;color:#FFD700;border:2px solid #555;padding:12px;border-radius:10px;font-weight:900;font-size:15px;cursor:pointer}
-.btn-s.active{background:#FFD700;color:#000;border-color:#FFD700;box-shadow:0 0 14px #FFD700}
-.badge{display:inline-block;background:#000;border:2px solid #FFD700;color:#FFD700;padding:6px 14px;border-radius:24px;font-weight:900;font-size:13px;margin:3px;box-shadow:0 0 8px rgba(255,215,0,.3)}
-.badge.turn{background:#FFD700;color:#000;box-shadow:0 0 16px #FFD700;font-size:15px}
-.wallet{font-size:19px;font-weight:900}
-.wallet span{color:#fff;background:#000;border:2px solid #FFD700;padding:4px 12px;border-radius:10px;text-shadow:0 0 8px #FFD700}
-
-.board-wrap{padding:8px;background:#000;border-radius:14px}
-.board{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;width:100%;max-width:700px;margin:0 auto;border:5px solid #FFD700;border-radius:12px;overflow:hidden;background:#FFD700;box-shadow:0 0 28px rgba(255,215,0,.6),inset 0 0 12px rgba(0,0,0,.8)}
-.cell{min-height:48px;aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;position:relative;padding:2px 1px;border:1.5px solid #222}
-.cell.light{background:#f6f0d5}
-.cell.dark{background:#c9b86a}
-.cell.snake-start{background:#ff2a2a!important;border:2.5px solid #900;box-shadow:inset 0 0 12px rgba(255,0,0,.7)}
-.cell.ladder-start{background:#FFD700!important;border:2.5px solid #b89600;box-shadow:inset 0 0 12px rgba(255,215,0,.9)}
-.cell-num{font-size:14px;font-weight:900;color:#000;line-height:1;text-shadow:0 0 1px #fff}
-.cell-info{font-size:9px;font-weight:900;color:#900;line-height:1;margin-top:1px}
-.cell-info.ladder-info{color:#5a4500}
-.tokens{display:flex;gap:2px;position:absolute;bottom:2px;left:50%;transform:translateX(-50%);z-index:3}
-.tkn{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;border:2.5px solid;box-shadow:0 2px 6px #000,0 0 10px currentColor}
-.tkn.g{background:#FFD700;color:#000;border-color:#000;box-shadow:0 0 14px #FFD700,0 2px 6px #000}
-.tkn.b{background:#000;color:#FFD700;border-color:#FFD700;box-shadow:0 0 14px #FFD700,0 2px 6px #000}
-.dice-area{text-align:center;padding:12px}
-.dice-face{width:84px;height:84px;background:#111;border:4px solid #FFD700;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:60px;font-weight:900;color:#FFD700;box-shadow:0 0 24px rgba(255,215,0,.6),inset 0 0 12px rgba(255,215,0,.2)}
-.dice-face.rollAnim{animation:roll .5s cubic-bezier(.2,.8,.2,1)}
-@keyframes roll{0%{transform:rotate(0) scale(1)}25%{transform:rotate(90deg) scale(1.2)}50%{transform:rotate(180deg) scale(.9)}75%{transform:rotate(270deg) scale(1.15)}100%{transform:rotate(360deg) scale(1)}}
-@keyframes tokenMove{0%{transform:translateY(-22px) scale(1.4);opacity:.6}100%{transform:translateY(0) scale(1);opacity:1}}
-.list-title{font-size:15px;font-weight:900;margin:10px 0 6px;color:#FFD700;text-shadow:0 0 8px #FFD700}
-.snake-list,.ladder-list{display:flex;flex-wrap:wrap;gap:6px}
-.snake-chip{background:#2a0000;border:2px solid #ff4444;color:#ffb3b3;padding:6px 10px;border-radius:10px;font-weight:900;font-size:12px}
-.ladder-chip{background:#332a00;border:2px solid #FFD700;color:#FFD700;padding:6px 10px;border-radius:10px;font-weight:900;font-size:12px}
-.msgBox{background:#000;border:2px solid #FFD700;border-radius:12px;padding:12px;font-size:15px;font-weight:800;min-height:48px;color:#fff;box-shadow:inset 0 0 12px rgba(255,215,0,.15)}
-.progress-bar{height:16px;background:#111;border:2px solid #333;border-radius:10px;overflow:hidden;display:flex}
-.progress-fill{height:100%;transition:width .4s ease}
-</style>
-</head>
-<body>
-<h1>🐍 SNAKE & LADDER • BLACK #000 + GOLD #FFD700 • NEAT FIXED</h1>
-
-<div class="card">
-<div class="row">
-<div class="badge" id="authInfo" style="font-size:14px">Local Mode Ready — No login needed</div>
-<div style="display:flex;gap:6px">
-<button id="authBtn" class="btn btn-black" style="padding:8px 14px;font-size:13px">Sign Gmail</button>
-<button id="buyBtn" class="btn btn-gold" style="padding:8px 14px;font-size:13px">💰 Buy Credits</button>
+<style>body{background:#080808;color:#FFD700;font-family:system-ui;text-align:center;padding:8px}.card{background:#151515;border:1px solid #FFD700;border-radius:14px;padding:10px;margin:8px auto;max-width:650px}.btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:800;width:100%;margin-top:6px;cursor:pointer}.btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;margin-top:6px;cursor:pointer}.board{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;width:100%;max-width:600px;margin:0 auto;border:3px solid #FFD700;border-radius:10px;overflow:hidden}.cell{aspect-ratio:1/1;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;position:relative;border:1px solid #222}.cell.snake{background:#2a0000}.cell.ladder{background:#332a00}.token{width:18px;height:18px;border-radius:50%;position:absolute;bottom:2px;font-size:12px}.token.black{background:#000;border:2px solid #fff}.token.golden{background:#FFD700;border:2px solid #000}.badge{background:#222;border:1px solid #444;padding:4px 10px;border-radius:20px;font-size:11px;margin:2px;display:inline-block}.badge.turn{background:#FFD700;color:#000;font-weight:800}.dice{font-size:36px;margin:10px}</style></head><body>
+<h1>🐍 SNAKE & LADDER - BLACK & GOLDEN (FIXED)</h1>
+<div class="card" style="display:flex;justify-content:space-between"><span id="authInfo">Checking...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card"><div>🪙 <b id="credits">500</b> • Pot <span id="pot">200</span> • Win <span id="win">180</span></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn-s" onclick="setStake(100)">100</button><button class="btn-s" onclick="setStake(500)">500</button><button class="btn-s" onclick="setStake(1000)">1000</button><button class="btn-s" onclick="setStake(5000)">5000</button></div><button class="btn" onclick="startLocal()">Local 2P Start</button></div>
+<div class="card"><span class="badge" id="roomBadge">Local 2P</span><span class="badge turn" id="turnBadge">Golden Turn</span><span class="badge" id="posBadge">Golden:1 Black:1</span>
+<div class="dice" id="dice">🎲 1</div>
+<button class="btn" onclick="rollDice()" style="background:#000;color:#FFD700;border:2px solid #FFD700">ROLL DICE 🎲</button>
+<div class="board" id="board"></div>
+<div style="font-size:10px;margin-top:6px" id="msg">Golden starts at 1. Roll dice, need exact 100 to win. Black snakes ↓ Golden ladders ↑</div>
+<div style="font-size:9px;margin-top:6px;opacity:.6">Snakes: 99→54,70→55,52→42,56→8,43→17,50→5,27→5,36→6 | Ladders: 2→23,6→45,20→59,30→49,57→96,72→90,80→100,28→84</div>
 </div>
-</div>
-</div>
-
-<div class="card">
-<div class="row wallet">
-<div>🪙 Credits: <span id="credits">500</span> • POT: <span id="pot">200</span> • WIN 90%: <span id="win">180</span></div>
-</div>
-<div class="row" style="margin-top:10px">
-<button class="btn-s active" data-stake="100" onclick="window.setStake(100)">100</button>
-<button class="btn-s" data-stake="500" onclick="window.setStake(500)">500</button>
-<button class="btn-s" data-stake="1000" onclick="window.setStake(1000)">1000</button>
-<button class="btn-s" data-stake="5000" onclick="window.setStake(5000)">5000</button>
-</div>
-<div class="row" style="margin-top:10px">
-<button class="btn btn-gold" style="flex:2" onclick="window.startLocal()">🎮 Local 2P Start - PLAY INSTANTLY</button>
-<button class="btn btn-black" style="flex:1" onclick="window.createOnlineRoom()">🌐 Online Room</button>
-<button class="btn btn-black" style="flex:1" onclick="window.joinLastRoom()">🔗 Join</button>
-</div>
-</div>
-
-<div class="card">
-<div class="row" style="justify-content:center">
-<span class="badge" id="roomBadge">Local 2P</span>
-<span class="badge turn" id="turnBadge">Golden Turn</span>
-<span class="badge" id="posBadge">G:1 | B:1</span>
-</div>
-<div class="dice-area">
-<div id="dice" class="dice-face">1</div>
-<div style="margin-top:12px"><button id="rollBtn" class="btn btn-gold" style="font-size:22px;padding:18px 32px;min-width:240px" onclick="window.rollDice()">ROLL DICE 🎲</button></div>
-<div class="progress-bar" style="max-width:500px;margin:12px auto 0"><div id="pGolden" class="progress-fill" style="background:linear-gradient(#FFD700,#FFA000);width:1%"></div><div style="width:4px;background:#000"></div><div id="pBlack" class="progress-fill" style="background:linear-gradient(#555,#000);width:1%"></div></div>
-<div class="row" style="justify-content:center;margin-top:6px"><span class="badge" style="background:#FFD700;color:#000">G 28px + Glow</span><span class="badge" style="background:#000;color:#FFD700">B 28px + Glow</span></div>
-</div>
-<div class="board-wrap"><div class="board" id="board"></div></div>
-<div id="msg" class="msgBox" style="margin-top:12px">✅ Ready! Click ROLL DICE. Golden starts at 1. Need exact 100 to win. Snakes 🐍 drag down, Ladders 🪜 climb up.</div>
-<div class="list-title">🐍 SNAKES (Red ↓ Arrow)</div>
-<div class="snake-list" id="snakeList"></div>
-<div class="list-title">🪜 LADDERS (Gold ↑ Arrow)</div>
-<div class="ladder-list" id="ladderList"></div>
-</div>
-
-<div class="card" style="text-align:center;font-size:11px;opacity:.75">Black #000 + Golden #FFD700 | Cells 48px min | Numbers 14px bold | Tokens 28px G/B glow | Firebase chessbyethan snake_rooms | Paystack LIVE pk_live_ec06b408bfb5c633263ee48346288df5df12df7f | Wallet ethan_credits shared | Pot stake*2 Winner 90%</div>
-
 <script type="module">
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "firebase/firestore";
-let fb=null;
-try{
-  const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
-  const app=initializeApp(cfg);
-  const auth=getAuth(app); const db=getFirestore(app);
-  fb={auth,db,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,doc,setDoc,getDoc,onSnapshot,collection};
-  window._fb=fb;
-  const provider=new GoogleAuthProvider();
-  window._currentUser=null;
-  const authInfoEl=document.getElementById('authInfo');
-  const authBtn=document.getElementById('authBtn');
-  authBtn.onclick=async()=>{ if(window._currentUser){ await signOut(auth); } else { try{ await signInWithPopup(auth,provider);}catch(e){ alert("Gmail login failed: "+e.message);} } };
-  onAuthStateChanged(auth,u=>{ window._currentUser=u; if(u){ authInfoEl.textContent="✅ "+u.displayName+" • "+u.email; authBtn.textContent="Sign Out"; } else { authInfoEl.textContent="Local Mode Ready - Gmail Optional"; authBtn.textContent="Sign Gmail"; } });
-}catch(e){ console.warn("Firebase optional fail",e); }
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, setDoc } from "firebase/firestore";
+try{const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"}; const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app); window._fb={auth,db,doc,setDoc,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}; const provider=new GoogleAuthProvider(); window._currentUser=null; const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn'); authBtn.onclick=async()=>{if(window._currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)}}; onAuthStateChanged(auth,u=>{window._currentUser=u; if(u){authInfo.innerHTML=u.displayName; authBtn.textContent='Sign Out'}else{authInfo.textContent='Not signed - Local works'; authBtn.textContent='Sign Gmail'}});}catch(e){}
 </script>
-
 <script>
-const STORAGE_KEY='ethan_credits';
-let credits=parseInt(localStorage.getItem(STORAGE_KEY)||'500',10);
-let stake=100;
-let pos={golden:1,black:1};
-let turn='golden';
-let gameActive=true;
-let roomId=null; let roomUnsub=null;
-const finalSnakes={99:54,70:55,52:42,56:8,43:17,50:5,27:5,36:6};
-const finalLadders={2:23,6:45,20:59,30:49,57:96,72:90,80:100,28:84};
-
-function saveCredits(){ localStorage.setItem(STORAGE_KEY,String(credits)); }
-function el(id){ return document.getElementById(id); }
-
-function updateUI(){
-  el('credits').textContent=credits;
-  const pot=stake*2;
-  el('pot').textContent=pot;
-  el('win').textContent=Math.floor(pot*0.9);
-  el('posBadge').textContent=`G:${pos.golden} | B:${pos.black}`;
-  el('turnBadge').textContent=(turn==='golden'?'GOLDEN':'BLACK')+' TURN';
-  el('pGolden').style.width=Math.max(1,pos.golden)+'%';
-  el('pBlack').style.width=Math.max(1,pos.black)+'%';
-  document.querySelectorAll('.btn-s').forEach(b=>{ b.classList.toggle('active', parseInt(b.dataset.stake,10)===stake); });
-  renderBoard();
-}
-
-window.setStake=function(s){ stake=s; updateUI(); };
-
-window.startLocal=function(){
-  pos={golden:1,black:1}; turn='golden'; gameActive=true; roomId=null;
-  if(roomUnsub){ roomUnsub(); roomUnsub=null; }
-  el('roomBadge').textContent='Local 2P';
-  el('msg').innerHTML='✅ <b>Local 2P started!</b> Golden at 1. Click ROLL DICE. Need exact 100 to win.';
-  updateUI();
-};
-
+let credits=getCredits(); let stake=100, pot=200;
+let pos={golden:1,black:1}; let turn='golden';
+const snakes={99:54,70:55,52:42,56:8,43:17,50:5,27:5,36:6,54:31};
+const ladders={2:23,6:45,20:59,30:49,57:96,72:90,75:86,80:100,28:84,57:96};
+function updateUI(){ try{ credits=getCredits(); }catch(e){} document.getElementById('credits').innerText=getCredits(); try{let el=document.getElementById('creditBal'); if(el) el.innerText=getCredits(); let el2=document.getElementById('walletBal'); if(el2) el2.innerText=getCredits();}catch(e){} document.getElementById('pot').innerText=pot; document.getElementById('win').innerText=Math.floor(pot*0.9); document.getElementById('posBadge').innerText=`Golden:${pos.golden} Black:${pos.black}`; document.getElementById('turnBadge').innerText=(turn==='golden'?'Golden':'Black')+' Turn'; renderBoard();}
+function setStake(s){stake=s; pot=s*2; updateUI();}
 function renderBoard(){
-  const board=el('board'); board.innerHTML='';
-  for(let r=9;r>=0;r--){
-    for(let c=0;c<10;c++){
-      let col = (r%2===0)? c : (9-c);
-      let num = r*10+col+1;
-      let cell=document.createElement('div');
-      cell.className='cell '+( ((r+c)%2===0)?'light':'dark');
-      if(finalSnakes[num]) cell.className+=' snake-start';
-      if(finalLadders[num]) cell.className+=' ladder-start';
-      let numEl=`<div class="cell-num">${num}</div>`;
-      let info='';
-      if(finalSnakes[num]) info+=`<div class="cell-info">🐍→${finalSnakes[num]}</div>`;
-      if(finalLadders[num]) info+=`<div class="cell-info ladder-info">🪜→${finalLadders[num]}</div>`;
-      let tokensHtml='<div class="tokens">';
-      if(pos.golden===num) tokensHtml+=`<div class="tkn g" style="animation:tokenMove .35s ease">G</div>`;
-      if(pos.black===num) tokensHtml+=`<div class="tkn b" style="animation:tokenMove .35s ease">B</div>`;
-      tokensHtml+='</div>';
-      cell.innerHTML=numEl+info+tokensHtml;
-      board.appendChild(cell);
+ let board=document.getElementById('board'); board.innerHTML='';
+ for(let r=9;r>=0;r--){
+  let row=[]; for(let c=0;c<10;c++){let num; if(r%2===0) num=r*10+c+1; else num=r*10+(9-c)+1; row.push(num);}
+  row.forEach(num=>{
+   let cell=document.createElement('div'); cell.className='cell';
+   if(snakes[num]) cell.classList.add('snake');
+   if(ladders[num]) cell.classList.add('ladder');
+   let txt=`${num}`; if(snakes[num]) txt+=`🐍→${snakes[num]}`; if(ladders[num]) txt+=`🪜→${ladders[num]}`;
+   cell.innerHTML=`<div style="font-size:9px">${txt}</div>`;
+   if(pos.golden===num){let t=document.createElement('div'); t.className='token golden'; t.innerText='G'; cell.appendChild(t);}
+   if(pos.black===num){let t=document.createElement('div'); t.className='token black'; t.innerText='B'; cell.appendChild(t);}
+   board.appendChild(cell);
+  });
+ }
+}
+function rollDice(){
+ let dice=Math.floor(Math.random()*6)+1;
+ document.getElementById('dice').innerText='🎲 '+dice;
+ let cur=turn==='golden'?pos.golden:pos.black;
+ let nxt=cur+dice;
+ if(nxt>100){ document.getElementById('msg').innerText=`Need exact 100! You have ${cur}, rolled ${dice} would be ${nxt} - stay`; turn=turn==='golden'?'black':'golden'; updateUI(); return; }
+ cur=nxt;
+ if(snakes[cur]){ document.getElementById('msg').innerText=`🐍 Snake! ${cur} → ${snakes[cur]}`; cur=snakes[cur]; }
+ else if(ladders[cur]){ document.getElementById('msg').innerText=`🪜 Ladder! ${cur} → ${ladders[cur]}`; cur=ladders[cur]; }
+ else { document.getElementById('msg').innerText=`Moved to ${cur}`; }
+ if(turn==='golden') pos.golden=cur; else pos.black=cur;
+ if(cur===100){
+  let winAmt=Math.floor(pot*0.9);
+  alert((turn==='golden'?'Golden':'Black')+' WINS! Pot '+winAmt);
+  if(turn==='golden'){ addCredits(winAmt); } else { addCredits(winAmt); }
+  startLocal(); return;
+ }
+ turn=turn==='golden'?'black':'golden';
+ updateUI();
+}
+let _gameStarted=false;
+function startLocal(isNewGame){
+  if(isNewGame!==false){
+    if(!deductCredits(stake)){
+      document.getElementById('msg').innerText='Not enough credits to start! Need '+stake;
+      return false;
     }
   }
-}
-
-window.rollDice=function(){
-  if(!gameActive){ el('msg').textContent='Game over! Click Local 2P Start to replay.'; return; }
-  const diceEl=el('dice');
-  diceEl.classList.remove('rollAnim');
-  void diceEl.offsetWidth;
-  diceEl.classList.add('rollAnim');
-  const dice=Math.floor(Math.random()*6)+1;
-  // show during animation intermediate
-  setTimeout(()=>{ diceEl.textContent=dice; },120);
-  setTimeout(()=>processMove(dice), 300);
-};
-
-function processMove(dice){
-  let cur = turn==='golden'?pos.golden:pos.black;
-  let nxt = cur+dice;
-  const msgEl=el('msg');
-  if(nxt>100){
-    msgEl.innerHTML=`❗ <b>Need exact 100!</b> ${turn.toUpperCase()} at ${cur}, rolled ${dice} → ${nxt} invalid. Stay at ${cur}. Turn passes.`;
-    switchTurn(); return;
-  }
-  let landing=nxt;
-  let snakeHit=null, ladderHit=null;
-  if(finalSnakes[landing]){ snakeHit={from:landing,to:finalSnakes[landing]}; landing=finalSnakes[landing]; }
-  else if(finalLadders[landing]){ ladderHit={from:landing,to:finalLadders[landing]}; landing=finalLadders[landing]; }
-
-  if(turn==='golden') pos.golden=landing; else pos.black=landing;
+  pos={golden:1,black:1}; turn='golden'; _gameStarted=true;
+  document.getElementById('roomBadge').innerText='Local 2P';
+  document.getElementById('msg').innerText='Golden starts. Click ROLL DICE. Entry '+stake+' deducted.';
   updateUI();
-
-  if(snakeHit){
-    msgEl.innerHTML=`🐍 <b>SNAKE BITE!</b> ${turn.toUpperCase()} hit ${snakeHit.from} <span style="font-size:22px">🐍</span> slides ↓ to ${snakeHit.to}`;
-  }else if(ladderHit){
-    msgEl.innerHTML=`🪜 <b>LADDER CLIMB!</b> ${turn.toUpperCase()} climbs ${ladderHit.from} <span style="font-size:22px">🪜</span> ↑ to ${ladderHit.to}`;
-  }else{
-    msgEl.innerHTML=`✅ <b>${turn.toUpperCase()}</b> rolled ${dice} — moved ${cur} → ${landing}`;
-  }
-
-  if(landing===100){
-    gameActive=false;
-    const pot=stake*2; const winAmt=Math.floor(pot*0.9);
-    msgEl.innerHTML=`🏆 <b>${turn.toUpperCase()} WINS!</b> Reached 100 exactly! Wins ${winAmt} (90% of pot ${pot}).`;
-    credits+=winAmt; saveCredits(); updateUI();
-    setTimeout(()=>{ if(confirm(turn.toUpperCase()+" WINS! Pot "+winAmt+" added. Play again?")) window.startLocal(); }, 650);
-    if(roomId && window._fb){ try{ window._fb.setDoc(window._fb.doc(window._fb.db,'snake_rooms',roomId), {winner:turn, pos, credits, finished:true, at:Date.now()}, {merge:true}); }catch(e){} }
-    return;
-  }
-  switchTurn();
+  return true;
 }
-function switchTurn(){ turn = turn==='golden'?'black':'golden'; updateUI(); }
-
-function renderLists(){
-  const sEl=el('snakeList'); const lEl=el('ladderList');
-  sEl.innerHTML=''; lEl.innerHTML='';
-  Object.entries(finalSnakes).sort((a,b)=>b[0]-a[0]).forEach(([f,t])=>{ let d=document.createElement('div'); d.className='snake-chip'; d.textContent=`🐍 ${f} → ${t}`; sEl.appendChild(d); });
-  Object.entries(finalLadders).sort((a,b)=>a[0]-b[0]).forEach(([f,t])=>{ let d=document.createElement('div'); d.className='ladder-chip'; d.textContent=`🪜 ${f} → ${t}`; lEl.appendChild(d); });
-}
-
-window.buyCredits=function(){
-  const amount=prompt("Enter credits to buy (INR). e.g., 100 = ₹100 → 100 credits:","100");
-  if(!amount) return;
-  const amtNum=parseInt(amount,10); if(isNaN(amtNum)||amtNum<=0) return;
-  const email=(window._currentUser&&window._currentUser.email)||"player@ethan.game";
-  if(typeof PaystackPop==='undefined'){ alert("Paystack not loaded, check internet."); return; }
-  const handler=PaystackPop.setup({
-    key:"pk_live_ec06b408bfb5c633263ee48346288df5df12df7f",
-    email:email,
-    amount: amtNum*100,
-    currency:"INR",
-    callback:function(resp){
-      const add=Math.floor(amtNum);
-      credits+=add; saveCredits(); updateUI();
-      alert("Payment success! "+resp.reference+" Credits +"+add);
-      el('msg').textContent="💰 Credits added: +"+add+" Ref: "+resp.reference;
-    },
-    onClose:function(){ el('msg').textContent="Paystack closed."; }
-  });
-  handler.openIframe();
-};
-document.getElementById('buyBtn').onclick=window.buyCredits;
-
-window.createOnlineRoom=async function(){
-  try{
-    if(!window._fb||!window._fb.db){ alert("Firebase not ready, but Local works."); return; }
-    const id=Math.random().toString(36).slice(2,8).toUpperCase();
-    roomId=id;
-    const roomRef=window._fb.doc(window._fb.db,'snake_rooms',id);
-    await window._fb.setDoc(roomRef,{id, pos:{golden:1,black:1}, turn:'golden', stake, pot:stake*2, host:(window._currentUser&&window._currentUser.uid)||'local', status:'waiting', created:Date.now()});
-    el('roomBadge').textContent='Room '+id;
-    el('msg').textContent='🌐 Room '+id+' created. Share code. Stake '+stake+' Pot '+stake*2;
-    if(roomUnsub) roomUnsub();
-    roomUnsub=window._fb.onSnapshot(roomRef,snap=>{
-      if(!snap.exists()) return;
-      const data=snap.data(); if(data.pos){ pos=data.pos; turn=data.turn||turn; updateUI(); }
-    });
-  }catch(e){ alert("Room create failed: "+e.message+" — Local still works."); }
-};
-window.joinLastRoom=async function(){
-  const code=prompt("Enter Room Code:"); if(!code) return;
-  try{
-    if(!window._fb||!window._fb.db){ alert("Firebase not ready."); return; }
-    roomId=code.trim().toUpperCase();
-    const roomRef=window._fb.doc(window._fb.db,'snake_rooms',roomId);
-    const snap=await window._fb.getDoc(roomRef);
-    if(!snap.exists()){ alert("Room not found"); return; }
-    const data=snap.data(); pos=data.pos||pos; turn=data.turn||'golden'; stake=data.stake||stake;
-    el('roomBadge').textContent='Room '+roomId; updateUI();
-    if(roomUnsub) roomUnsub();
-    roomUnsub=window._fb.onSnapshot(roomRef,snap2=>{
-      if(!snap2.exists()) return; const d=snap2.data(); if(d.pos){ pos=d.pos; turn=d.turn||turn; updateUI(); }
-    });
-    el('msg').textContent='🔗 Joined Room '+roomId;
-  }catch(e){ alert("Join failed: "+e.message); }
-};
-
-// INIT IMMEDIATELY - NO ASYNC LOCKS
-renderLists();
-updateUI();
-</script>
-</body>
-</html>
+setStake(100); startLocal(true);
+</script></body></html>

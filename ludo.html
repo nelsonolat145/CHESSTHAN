@@ -1,6 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+    let el3=document.getElementById('creditsVal'); if(el3) el3.textContent=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+// expose on window for module scripts
+try{ window.safeCredits=safeCredits; window.getCredits=getCredits; window.setCredits=setCredits; window.deductCredits=deductCredits; window.addCredits=addCredits; window.ETHAN_CREDITS=ETHAN_CREDITS; }catch(e){}
+</script>
+
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <title>LUDO KING FIXED NEAT - MUST PLAY INSTANTLY</title>
@@ -106,16 +151,18 @@ const firebaseConfig={apiKey:"AIzaSyCwZz8o6e3o4e8g9z0f1a2b3c4d5e6f7",authDomain:
 let app,auth,db;
 try{app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app);}catch(e){console.warn(e)}
 const PAYSTACK_KEY="pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
-let credits=parseInt(localStorage.getItem('ethan_credits')||'1500',10);
+let credits=getCredits(); // FIXED: use safe getCredits()
 let stake=parseInt(localStorage.getItem('ludo_stake')||'500',10);
-function saveCredits(){localStorage.setItem('ethan_credits',String(credits));upd()}
-function upd(){document.getElementById('creditsVal').textContent=credits;document.getElementById('potVal').textContent=stake*2}
+function saveCredits(){ // FIXED to use setCredits
+  try{ if(typeof window.setCredits==='function'){ window.setCredits(credits); } else { setCredits(credits); } }catch(e){ setCredits(credits); } upd(); }
+function upd(){ let cur=getCredits(); try{ credits=cur; }catch(e){}; let el=document.getElementById('creditsVal'); if(el) el.textContent=cur; let pot=document.getElementById('potVal'); if(pot) pot.textContent=stake*2; // also update alternative ids
+  try{ let el2=document.getElementById('creditBal'); if(el2) el2.innerText=cur; let el3=document.getElementById('walletBal'); if(el3) el3.innerText=cur; }catch(e){} }
 upd();
 window.buyCredits=function(amount){
  if(typeof PaystackPop==='undefined'){alert('Paystack loading');return;}
  const email=auth?.currentUser?.email||`guest_${Date.now()}@ludo.local`;
  const handler=PaystackPop.setup({key:PAYSTACK_KEY,email:email,amount:(amount===1000?500*100:amount*50),currency:'NGN',
- callback:function(r){credits+=amount;saveCredits();logMsg(`✅ Bought ${amount} ref ${r.reference}`);},
+ callback:function(r){ try{ addCredits(amount); }catch(e){ window.addCredits(amount); } credits=getCredits(); upd(); logMsg(`✅ Bought ${amount} ref ${r.reference}`);},
  onClose:function(){logMsg('Paystack closed')}});
  handler.openIframe();
 };
@@ -203,7 +250,7 @@ function capture(pos,attacker){
  for(let p of ['gold','black']){if(p==attacker)continue;for(let i=0;i<4;i++){if(state.tokens[p][i]==pos){state.tokens[p][i]=-1;logMsg(`💥 ${attacker} captures ${p} #${i+1} HOME`);}}}
 }
 function checkWin(){
- for(let p of ['gold','black']){if(state.tokens[p].every(v=>v==106)){const pot=stake*2;const win=Math.floor(pot*0.9);logMsg(`🎉 ${p.toUpperCase()} WINS Pot ${pot} → ${win}`);credits+=win;saveCredits();setTimeout(()=>alert(`${p.toUpperCase()} WINS ${win} credits!`),100);return true;}}return false;
+ for(let p of ['gold','black']){if(state.tokens[p].every(v=>v==106)){const pot=stake*2;const win=Math.floor(pot*0.9);logMsg(`🎉 ${p.toUpperCase()} WINS Pot ${pot} → ${win}`); try{ addCredits(win); }catch(e){ window.addCredits(win); } credits=getCredits(); upd(); setTimeout(()=>alert(`${p.toUpperCase()} WINS ${win} credits!`),100);return true;}}return false;
 }
 function rollDice(){
  if(state.rolled){logMsg('Move glowing token first');return;}
@@ -213,8 +260,8 @@ document.getElementById('rollBtn').onclick=rollDice;
 document.getElementById('dice').onclick=rollDice;
 document.getElementById('resetBtn').onclick=()=>{state.tokens={gold:[-1,-1,-1,-1],black:[-1,-1,-1,-1]};state.turn='gold';state.rolled=false;state.dice=1;state.moves=[];renderTokens();logMsg('Reset');};
 document.getElementById('localBtn').onclick=()=>{state.mode='local';state.room=null;state.tokens={gold:[-1,-1,-1,-1],black:[-1,-1,-1,-1]};state.turn='gold';state.rolled=false;state.dice=1;state.moves=[];document.getElementById('roomBadge').textContent='Local 2P • Instant';renderTokens();logMsg('✅ Local 2P Start - INSTANT PLAY no Gmail needed!');document.getElementById('hint').textContent='Ready! ROLL DICE now!';};
-async function createRoom(){if(!db){alert('Firebase offline but local works');return;}const code='LUDO-'+Math.random().toString(36).slice(2,6).toUpperCase();if(credits<stake){alert('Not enough credits');return;}credits-=stake;saveCredits();state.room=code;state.mode='online-host';document.getElementById('roomBadge').textContent=code;try{await setDoc(doc(db,'ludo_rooms',code),{code,stake,pot:stake*2,players:[{uid:auth?.currentUser?.uid||'guest_gold',name:'GOLD',id:'gold'}],state:JSON.parse(JSON.stringify(state)),createdAt:serverTimestamp(),status:'waiting'});logMsg(`Created ${code}`);}catch(e){logMsg(e.message);}}
-async function joinRoom(){if(!db)return;const code=document.getElementById('joinInput').value.trim().toUpperCase();if(!code)return alert('Enter code');try{const ref=doc(db,'ludo_rooms',code);const snap=await getDoc(ref);if(!snap.exists())return alert('Not found');if(credits<snap.data().stake)return alert('No credits');credits-=snap.data().stake;saveCredits();state.room=code;state.mode='online-join';document.getElementById('roomBadge').textContent=code;await updateDoc(ref,{players:[...(snap.data().players||[]),{uid:auth?.currentUser?.uid||'guest_black',name:'BLACK',id:'black'}],status:'playing'});logMsg(`Joined ${code}`);onSnapshot(ref,s=>{if(!s.exists())return;const d=s.data();if(d.state&&JSON.stringify(d.state.tokens)!==JSON.stringify(state.tokens)){state={...d.state,room:code,mode:state.mode};renderTokens();}});}catch(e){alert(e.message);}}
+async function createRoom(){if(!db){alert('Firebase offline but local works');return;}const code='LUDO-'+Math.random().toString(36).slice(2,6).toUpperCase();if(getCredits()<stake){alert('Not enough credits');return;} if(!deductCredits(stake)){ return; } credits=getCredits(); upd();state.room=code;state.mode='online-host';document.getElementById('roomBadge').textContent=code;try{await setDoc(doc(db,'ludo_rooms',code),{code,stake,pot:stake*2,players:[{uid:auth?.currentUser?.uid||'guest_gold',name:'GOLD',id:'gold'}],state:JSON.parse(JSON.stringify(state)),createdAt:serverTimestamp(),status:'waiting'});logMsg(`Created ${code}`);}catch(e){logMsg(e.message);}}
+async function joinRoom(){if(!db)return;const code=document.getElementById('joinInput').value.trim().toUpperCase();if(!code)return alert('Enter code');try{const ref=doc(db,'ludo_rooms',code);const snap=await getDoc(ref);if(!snap.exists())return alert('Not found');let needStake=snap.data().stake; if(getCredits()<needStake) return alert('No credits'); if(!deductCredits(needStake)){ return; } credits=getCredits(); upd();state.room=code;state.mode='online-join';document.getElementById('roomBadge').textContent=code;await updateDoc(ref,{players:[...(snap.data().players||[]),{uid:auth?.currentUser?.uid||'guest_black',name:'BLACK',id:'black'}],status:'playing'});logMsg(`Joined ${code}`);onSnapshot(ref,s=>{if(!s.exists())return;const d=s.data();if(d.state&&JSON.stringify(d.state.tokens)!==JSON.stringify(state.tokens)){state={...d.state,room:code,mode:state.mode};renderTokens();}});}catch(e){alert(e.message);}}
 async function sync(){if(!state.room||!db)return;try{await setDoc(doc(db,'ludo_rooms',state.room),{state:JSON.parse(JSON.stringify(state))},{merge:true});}catch{}}
 document.getElementById('createBtn').onclick=createRoom;
 document.getElementById('joinBtn').onclick=joinRoom;

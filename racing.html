@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>BLACK & GOLDEN RACING</title>
@@ -88,6 +130,53 @@ canvas{border:2.5px solid var(--gold);border-radius:18px;box-shadow:0 0 22px rgb
 </div>
 
 <script type="module">
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+// expose to global for sync
+window.safeCredits = safeCredits;
+window.getCredits = getCredits;
+window.setCredits = setCredits;
+window.deductCredits = deductCredits;
+window.addCredits = addCredits;
+
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection } from 'firebase/firestore';
@@ -110,7 +199,7 @@ try{
 const PAYSTACK_LIVE_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
 window.PAYSTACK_KEY = PAYSTACK_LIVE_KEY;
 
-let wallet = parseInt(localStorage.getItem('ethan_credits')||'1200');
+let wallet = getCredits(); // FIXED: was parseInt(localStorage.getItem('ethan_credits')||'1200')
 const walletEl = document.getElementById('wallet');
 const potEl = document.getElementById('pot');
 const stakeSel = document.getElementById('stakeSel');
@@ -120,14 +209,19 @@ const authBtn = document.getElementById('authBtn');
 const userInfo = document.getElementById('userInfo');
 
 function updateWalletUI(){
+  // FIXED: sync wallet var with safe storage
+  wallet = getCredits();
   walletEl.textContent = wallet;
-  const stake = parseInt(stakeSel.value);
+  try{ let cb=document.getElementById('creditBal'); if(cb) cb.innerText=wallet; let wb=document.getElementById('walletBal'); if(wb) wb.innerText=wallet; }catch(e){}
+  const stake = safeCredits(stakeSel.value,100);
   potEl.textContent = (stake*2) + " (" + Math.floor(stake*2*0.9) + " win)";
-  localStorage.setItem('ethan_credits', wallet);
+  localStorage.setItem('ethan_credits', String(wallet));
   // sync to firestore if logged
   if(db && user){
+    try{ window._fb = {doc, setDoc, db}; window._currentUser = user; }catch(e){}
     setDoc(doc(db,'users',user.uid), {ethan_credits:wallet, email:user.email}, {merge:true}).catch(()=>{});
     setDoc(doc(db,'ethan_credits', user.uid), {credits:wallet}, {merge:true}).catch(()=>{});
+    setDoc(doc(db,'chessbyethan_users', user.uid), {credits:wallet}, {merge:true}).catch(()=>{});
   }
 }
 window.buyCredits = function(amount=500){
@@ -140,8 +234,9 @@ window.buyCredits = function(amount=500){
     currency: 'NGN',
     ref: 'BG_'+Date.now(),
     callback: function(res){
-      wallet += amount;
-      updateWalletUI();
+      addCredits(amount);
+      wallet = getCredits();
+      updateWalletUI(); // FIXED to use addCredits
       statusEl.textContent = 'Payment verified '+res.reference+' +'+amount+' credits';
       log('Paystack success '+res.reference);
     },
@@ -175,7 +270,7 @@ if(auth){
       // load credits
       try{
         const snap = await getDoc(doc(db,'users',u.uid));
-        if(snap.exists() && snap.data().ethan_credits!=null){ wallet = snap.data().ethan_credits; }
+        if(snap.exists() && snap.data().ethan_credits!=null){ wallet = safeCredits(snap.data().ethan_credits, getCredits()); localStorage.setItem('ethan_credits', String(wallet)); }
       }catch{}
       updateWalletUI();
       log('Logged as '+u.email);
@@ -497,23 +592,23 @@ function loop(ts){
   if(car1.finished || car2.finished){
     gameRunning=false;
     let winner = car1.finished && !car2.finished ? 'BLACK (P1)' : !car1.finished && car2.finished ? 'GOLDEN (P2/AI)' : (car1.finishTime < car2.finishTime ? 'BLACK (P1)' : 'GOLDEN (P2/AI)');
-    let stake = parseInt(stakeSel.value);
-    let pot = stake*2;
+    let stake = safeCredits(stakeSel.value,100);
+    let pot = stake*2; // FIXED
     let winAmt = Math.floor(pot*0.9);
     statusEl.textContent = '🏁 Winner: '+winner+' +'+winAmt+' credits!';
     if((winner.includes('BLACK') && mode!=='local') || (mode==='local')){
       // for local, give to winner? for simplicity give to P1 if win else nothing, but add logic
       if(winner.includes('BLACK')){
-        wallet += winAmt;
+        addCredits(winAmt); wallet = getCredits(); // FIXED
       }else if(mode==='local'){
         // award to P2 conceptually same wallet for demo
-        wallet += winAmt;
+        addCredits(winAmt); wallet = getCredits(); // FIXED
       }
     }else{
       if(winner.includes('GOLDEN') && mode!=='local' && mode!=='ai'){
         // opponent win, don't add
       }else if(mode==='ai' && winner.includes('BLACK')){
-        wallet += winAmt;
+        addCredits(winAmt); wallet = getCredits(); // FIXED
       }
     }
     updateWalletUI();
@@ -532,9 +627,10 @@ requestAnimationFrame(loop);
 
 // start logic instant no async
 window.startGame = function(m){
-  let stake = parseInt(stakeSel.value);
-  if(wallet < stake){ alert('Not enough credits! Buy credits.'); buyCredits(); return; }
-  wallet -= stake;
+  let entryFee = safeCredits(stakeSel.value,100);
+  // FIXED: use deductCredits for entry fee
+  if(!deductCredits(entryFee)){ buyCredits(); return; }
+  wallet = getCredits();
   updateWalletUI();
   mode=m||'ai';
   car1.reset();
@@ -544,7 +640,7 @@ window.startGame = function(m){
   car2.x = TRACK.cx + 18; car2.y = TRACK.cy - TRACK.rh -6;
   car1.angle=car2.angle=-Math.PI/2 + 0.1;
   gameRunning=true;
-  statusEl.textContent = mode.toUpperCase()+' • Pot '+(stake*2)+' • First to 3 laps';
+  statusEl.textContent = mode.toUpperCase()+' • Pot '+(entryFee*2)+' • First to 3 laps'; // FIXED
   log('Green light! Arrow keys / gold buttons to drive. Complete 4 checkpoints then cross start to lap.');
   if(roomCode && roomUnsub){ try{roomUnsub();}catch{} roomUnsub=null; }
   if(m==='online'){ /* will be set by create/join */ }
@@ -555,8 +651,8 @@ let isHost=false;
 function genCode(){ return 'RACE-'+Math.random().toString(36).substring(2,6).toUpperCase(); }
 
 window.createRoom = async function(){
-  const stake = parseInt(stakeSel.value);
-  if(wallet < stake){ alert('Need stake credits'); return; }
+  const stake = safeCredits(stakeSel.value,100);
+  if(getCredits() < stake){ alert('Need stake credits'); return; } // stake validated via getCredits()
   const code = genCode();
   roomCode=code;
   roomBadge.textContent=code;
@@ -591,9 +687,9 @@ window.joinRoom = async function(){
   roomBadge.textContent=input;
   roomBadge.style.display='inline-block';
   isHost=false;
-  const stake = parseInt(stakeSel.value);
-  if(wallet < stake){ alert('Need stake'); return; }
-  wallet-=stake; updateWalletUI();
+  const stake = safeCredits(stakeSel.value,100);
+  if(!deductCredits(stake)){ alert('Need stake'); return; }
+  wallet = getCredits(); updateWalletUI();
   car1.reset(); car2.reset();
   car1.x = TRACK.cx - 18; car1.y = TRACK.cy - TRACK.rh -6;
   car2.x = TRACK.cx + 18; car2.y = TRACK.cy - TRACK.rh -6;

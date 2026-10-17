@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>QUIZ BATTLE - Trivia for Money</title>
@@ -159,24 +201,31 @@ authBtn.onclick = async ()=>{
   if(auth.currentUser){ await signOut(auth); } else { await signInWithPopup(auth, provider); }
 };
 onAuthStateChanged(auth, u=>{
-  if(u){ authBtn.textContent='LOGOUT'; userInfo.textContent=u.displayName||u.email; userInfo.classList.remove('hidden'); window.playerName=u.displayName||'Player'; }
+  window._currentUser = u;
+  if(u){ authBtn.textContent='LOGOUT'; userInfo.textContent=u.displayName||u.email; userInfo.classList.remove('hidden'); window.playerName=u.displayName||'Player'; try{ let fbBal = u; /* sync credits on login */ const stored=getCredits(); document.getElementById('creditBal').textContent=stored; }catch(e){} }
   else { authBtn.textContent='LOGIN GMAIL'; userInfo.classList.add('hidden'); }
 });
 </script>
 
 <script>
-// --- WALLET ---
+// --- WALLET (FIXED - uses safeCredits) ---
 const CRED_KEY='ethan_credits';
-function getCredits(){ return parseInt(localStorage.getItem(CRED_KEY)||'2500'); }
-function setCredits(v){ localStorage.setItem(CRED_KEY, v); renderWallet(); }
-function renderWallet(){ document.getElementById('creditBal').textContent=getCredits(); updatePot(); }
-function updatePot(){
-  const stake=window._stake||100;
-  const players=window._playersCount||2;
-  const pot=stake*players;
-  document.getElementById('potBal').textContent='NGN '+pot;
-  document.getElementById('potInfo').textContent='Winner 90% = '+(Math.floor(pot*0.9));
+function renderWallet(){ 
+  let bal=getCredits();
+  let el=document.getElementById('creditBal');
+  if(el){ el.textContent=bal; el.innerText=bal; }
+  updatePot(); 
 }
+function updatePot(){
+  const stake=safeCredits(window._stake,100);
+  const players=safeCredits(window._playersCount,2);
+  const pot=stake*players;
+  let potEl=document.getElementById('potBal');
+  if(potEl) potEl.textContent='NGN '+pot;
+  let potInfo=document.getElementById('potInfo');
+  if(potInfo) potInfo.textContent='Winner 90% = '+(Math.floor(pot*0.9));
+}
+
 window._stake=100; window._playersCount=2;
 function setStake(v){
   window._stake=v;
@@ -194,8 +243,7 @@ function buyCredits(amount){
     amount: amount*100,
     currency:'NGN',
     callback: function(res){
-      const cur=getCredits();
-      setCredits(cur+amount);
+      addCredits(amount);
       alert('Credits added: '+amount+' Ref:'+res.reference);
       log('Paystack success '+res.reference);
     },
@@ -296,9 +344,7 @@ function startGame(){
   const p1=document.getElementById('p1Name').value||'Player 1';
   const p2=document.getElementById('p2Name').value||'Player 2';
   window._playersCount=2;
-  if(getCredits() < window._stake){ alert('Not enough credits! Buy credits.'); return; }
-  // deduct stake
-  setCredits(getCredits()-window._stake);
+  if(!deductCredits(window._stake)){ return; }
   if(isOnline){
     if(!roomCode){ alert('Create or Join room first'); return; }
     // online start handled by room creation
@@ -431,8 +477,7 @@ function endGame(){
   document.getElementById('winPot').textContent='WIN: NGN '+winAmt;
   document.getElementById('winnerOverlay').classList.remove('hidden');
   // credit winner if local, give to winner wallet? For local, we add to local wallet as winner pot
-  const cur=getCredits();
-  setCredits(cur+winAmt);
+  addCredits(winAmt);
   log(`Game over winner ${winnerName} +${winAmt}`);
 }
 
@@ -451,6 +496,7 @@ async function createRoom(){
   isHost=true;
   isOnline=true;
   setMode('online_host');
+  if(!deductCredits(window._stake)){ alert('Not enough credits for stake! Buy credits.'); return; }
   matchQs=pickQuestions(10);
   const payload={
     code:code,
@@ -490,6 +536,7 @@ async function joinRoom(){
     isHost=false;
     isOnline=true;
     setMode('online_join');
+    if(!deductCredits(window._stake)){ alert('Not enough credits for stake!'); return; }
     const myName=document.getElementById('p2Name').value||(window._fb.auth.currentUser?.displayName||'Guest');
     const myId=window._fb.auth.currentUser?.uid||'join_'+Math.random().toString(36).slice(2);
     await updateDoc(doc(db,'quiz_rooms',codeInput), {joinName:myName, joinId:myId, status:'ready'});

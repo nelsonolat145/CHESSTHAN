@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SOCCER FREE KICK • Black & Golden</title>
@@ -122,7 +164,8 @@ const firebaseConfig = {
   measurementId: "G-SOCCERBLACKGOLD"
 };
 let app, auth, db;
-try{ app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); }catch(e){ console.warn("firebase init", e) }
+window._fb = {}; // will fill after init
+try{ app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); window._fb = {doc, getDoc, setDoc, updateDoc, db, app}; }catch(e){ console.warn("firebase init", e) }
 
 const PAYSTACK_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
 const canvas = document.getElementById('canvas');
@@ -144,15 +187,44 @@ function genCode(){ return 'SOCC-' + Math.floor(1000+Math.random()*9000); }
 
 // --- Wallet ---
 async function ensureWallet(uid){
-  if(!db) return 0;
+  if(!db) { 
+    // offline - ensure local credits exist
+    let local = getCredits();
+    return local;
+  }
   const ref = doc(db,'ethan_credits',uid);
   const snap = await getDoc(ref);
-  if(!snap.exists()){ await setDoc(ref,{credits:1000, uid, updatedAt:serverTimestamp()}); return 1000; }
-  return snap.data().credits||0;
+  if(!snap.exists()){ 
+    let local = getCredits();
+    await setDoc(ref,{credits:local, uid, updatedAt:serverTimestamp()}); 
+    setCredits(local);
+    return local; 
+  }
+  let remote = safeCredits(snap.data().credits, getCredits());
+  // sync local with remote if remote higher? Use max to avoid loss but prefer remote if exists
+  if(remote !== getCredits()){
+    // keep higher of the two to prevent losing purchased credits
+    let merged = Math.max(remote, getCredits());
+    setCredits(merged);
+    if(merged !== remote){
+      await setDoc(ref,{credits:merged},{merge:true});
+    }
+    return merged;
+  }
+  setCredits(remote);
+  return remote;
 }
 async function updateWalletUI(){
-  document.getElementById('walletPill').textContent = `WALLET: ₦${wallet}`;
-  document.getElementById('potTxt').textContent = `₦${getStake()*2} (WIN ₦${Math.floor(getStake()*2*0.9)})`;
+  let displayBal = currentUser ? safeCredits(wallet, getCredits()) : getCredits();
+  let wp = document.getElementById('walletPill');
+  if(wp) wp.textContent = `WALLET: ₦${displayBal}`;
+  let pot = document.getElementById('potTxt');
+  if(pot) pot.textContent = `₦${getStake()*2} (WIN ₦${Math.floor(getStake()*2*0.9)})`;
+  // also update any creditBal / walletBal elements
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=displayBal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=displayBal;
+  }catch(e){}
 }
 function getStake(){ return parseInt(document.getElementById('stakeSel').value,10)||1000; }
 
@@ -166,7 +238,7 @@ authBtn.onclick = async ()=>{
 };
 if(auth){
   onAuthStateChanged(auth, async (u)=>{
-    currentUser=u;
+    currentUser=u; window._currentUser=u; window._fb.currentUser=u;
     if(u){
       authBtn.textContent="LOGOUT";
       document.getElementById('userPill').style.display="inline-block";
@@ -195,15 +267,15 @@ window.buyCredits = ()=>{
     currency: "NGN",
     callback: async function(res){
       log(`Paystack OK ${res.reference}`);
+      let newBal = addCredits(amountN);
+      wallet = newBal;
       if(currentUser && db){
         const ref = doc(db,'ethan_credits',currentUser.uid);
-        const s = await getDoc(ref);
-        const cur = s.exists()? (s.data().credits||0):0;
-        await setDoc(ref,{credits: cur+amountN, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
-        wallet = cur+amountN; updateWalletUI();
-      } else {
-        wallet += amountN; updateWalletUI();
+        try{
+          await setDoc(ref,{credits: newBal, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
+        }catch(e){}
       }
+      updateWalletUI();
       alert(`Credited ₦${amountN}`);
     },
     onClose: ()=>log("Paystack closed")
@@ -229,6 +301,17 @@ function newGameState(){
 }
 
 function startMatch(){
+  // deduct entry fee using fixed wallet logic
+  let entryFee = getStake();
+  // In online mode, stake already deducted at room create/join - skip here to avoid double charge
+  if(document.getElementById('modeSel').value !== 'online'){
+    if(!deductCredits(entryFee)){
+      document.getElementById('startOverlay').style.display='flex';
+      return;
+    }
+    wallet = getCredits();
+    updateWalletUI();
+  }
   document.getElementById('startOverlay').style.display='none';
   document.getElementById('resultOverlay').style.display='none';
   game = newGameState();
@@ -236,7 +319,7 @@ function startMatch(){
   anim.playing=false;
   anim.ball={x:360,y:480};
   document.getElementById('powerWrap').style.display='none';
-  log(`Match start mode=${game.mode} stake=${getStake()} wind=${game.wind.toFixed(1)}`);
+  log(`Match start mode=${game.mode} stake=${getStake()} wind=${game.wind.toFixed(1)} (deducted ${entryFee}) game phase pick`);
   renderLoop();
   tickPhase();
 }
@@ -415,23 +498,39 @@ function finishMatch(){
   let winner = s1>s2?1: s2>s1?2:0;
   game.winner=winner;
   showWinner();
-  // payout
-  if(currentUser && getStake()>0){
+  // payout using fixed wallet logic
+  if(getStake()>0){
     const stake=getStake();
-    if(winner!==0 && db){
+    const pot = Math.floor(stake*2*0.9);
+    if(winner!==0){
       (async()=>{
-        const ref = doc(db,'ethan_credits',currentUser.uid);
-        const snap = await getDoc(ref);
-        let credits = snap.exists()? (snap.data().credits||0):wallet;
-        // simplistic: if user is P1 and wins, give 90% pot, else deduct? For demo just credit win if logged user assumed P1
-        // To avoid exploits, only handle when stake deducted elsewhere - here just bonus win for P1 if P1 won
-        if(winner===1){
-          const win = Math.floor(stake*2*0.9);
-          credits += win;
-          await setDoc(ref,{credits, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
-          wallet=credits; updateWalletUI();
-          log(`You won pot win ₦${win}`);
+        // For local/AI: if there's a winner, credit the pot to wallet (winner takes)
+        // Since this is single device, we credit current player as winner
+        let newBal = addCredits(pot);
+        wallet = newBal;
+        if(currentUser && db){
+          try{
+            const ref = doc(db,'ethan_credits',currentUser.uid);
+            await setDoc(ref,{credits: newBal, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
+          }catch(e){}
         }
+        updateWalletUI();
+        log(`Winner P${winner} pot win ₦${pot} credited -> ${newBal}`);
+      })();
+    } else {
+      // draw - refund stake
+      (async()=>{
+        let refund = getStake();
+        let newBal = addCredits(refund);
+        wallet = newBal;
+        if(currentUser && db){
+          try{
+            const ref = doc(db,'ethan_credits',currentUser.uid);
+            await setDoc(ref,{credits: newBal, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
+          }catch(e){}
+        }
+        updateWalletUI();
+        log(`Draw - refunded ₦${refund}`);
       })();
     }
   }
@@ -484,7 +583,7 @@ renderLoop();
 document.getElementById('createBtn').onclick = async ()=>{
   const stake=getStake();
   if(!db){ alert("Firebase offline - can't create room, but Local still works"); return; }
-  if(currentUser && wallet<stake){ alert(`Need ₦${stake} credits. Buy credits.`); return; }
+  if(safeCredits(getCredits(),0) < stake && safeCredits(wallet,0) < stake){ alert(`Need ₦${stake} credits. You have ${getCredits()}. Buy credits.`); return; }
   const code=genCode();
   try{
     const ref = doc(collection(db,'soccer_rooms'));
@@ -494,7 +593,7 @@ document.getElementById('createBtn').onclick = async ()=>{
     log(`Room created ${code} id ${ref.id}`);
     subscribeRoom(ref.id);
     // deduct stake for host
-    if(currentUser && db){ const wRef=doc(db,'ethan_credits',currentUser.uid); const s=await getDoc(wRef); let cr=s.exists()?s.data().credits:0; if(cr>=stake){ await updateDoc(wRef,{credits:cr-stake}); wallet=cr-stake; updateWalletUI(); } }
+    if(true){ deductCredits(stake); wallet=getCredits(); updateWalletUI(); if(currentUser && db){ try{ const wRef=doc(db,'ethan_credits',currentUser.uid); await setDoc(wRef,{credits:wallet, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true}); }catch(e){} } }
   }catch(e){ alert(e.message); }
 };
 document.getElementById('joinBtn').onclick = async ()=>{
@@ -507,13 +606,13 @@ document.getElementById('joinBtn').onclick = async ()=>{
     if(snap.empty) return alert("Room not found / not waiting");
     const d=snap.docs[0]; const data=d.data();
     const stake=data.stake||getStake();
-    if(currentUser && wallet<stake){ alert(`Need ₦${stake}`); return; }
+    if(safeCredits(getCredits(),0) < stake && safeCredits(wallet,0) < stake){ alert(`Need ₦${stake} credits. You have ${getCredits()}.`); return; }
     await updateDoc(d.ref,{guestUid:currentUser?.uid||'guest', guestName:currentUser?.displayName||'Black Guest', status:'playing', players:{...data.players, guest:currentUser?.uid||'guest'}});
     roomCode=code; roomDocId=d.id;
     document.getElementById('roomPill').style.display='inline-block'; document.getElementById('roomPill').textContent=`ROOM ${code}`;
     log(`Joined ${code}`);
     subscribeRoom(d.id);
-    if(currentUser && db){ const wRef=doc(db,'ethan_credits',currentUser.uid); const s=await getDoc(wRef); let cr=s.exists()?s.data().credits:0; if(cr>=stake){ await updateDoc(wRef,{credits:cr-stake}); wallet=cr-stake; updateWalletUI(); } }
+    if(true){ deductCredits(stake); wallet=getCredits(); updateWalletUI(); if(currentUser && db){ try{ const wRef=doc(db,'ethan_credits',currentUser.uid); await setDoc(wRef,{credits:wallet, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true}); }catch(e){} } }
   }catch(e){ alert(e.message); }
 };
 function subscribeRoom(id){

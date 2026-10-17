@@ -1,6 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+// FIXED WALLET LOGIC - ETHAN EMPIRE
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DRAUGHTS - Naija Checkers | Black & Golden</title>
@@ -154,6 +197,7 @@ authBtn.onclick = async ()=>{
 };
 onAuthStateChanged(auth, (u)=>{
  currentUser = u;
+ window._currentUser = u;
  if(u){
   authBtn.textContent="Logout";
   userBadge.style.display="inline-block";
@@ -165,10 +209,14 @@ onAuthStateChanged(auth, (u)=>{
 });
 
 // Wallet
-const CRED_KEY="ethan_credits";
-window.getCredits = ()=> parseInt(localStorage.getItem(CRED_KEY)||"2500",10);
-window.setCredits = (v)=>{ localStorage.setItem(CRED_KEY, String(v)); document.getElementById('creditBal').textContent=v; };
-window.setCredits(window.getCredits());
+// Wallet now uses fixed global logic above - safe wrapper
+window.getCredits = getCredits;
+window.setCredits = setCredits;
+window.CRED_KEY="ethan_credits";
+// ensure UI synced
+try{ setCredits(getCredits()); }catch(e){}
+// _currentUser set in auth handler above
+
 
 // Paystack
 const PAYSTACK_LIVE_KEY="pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
@@ -182,9 +230,8 @@ window.buyCredits = (amount)=>{
   currency: "NGN",
   ref: ref,
   callback: function(res){
-   const add = parseInt(amount,10);
-   const bal = getCredits()+add;
-   setCredits(bal);
+   const add = safeCredits(amount,0);
+   addCredits(add);
    animCredit(`+${add} CR`);
    showModal("Payment Success", `Added ${add} credits. Ref: ${res.reference}`);
   },
@@ -366,8 +413,7 @@ async function doMove(mv){
    const winAmount = Math.floor(pot*0.9);
    // winner logic credit if myColor == winner
    if(myColor===winner){
-    const bal=getCredits()+winAmount;
-    setCredits(bal);
+    addCredits(winAmount);
     animCredit(`+${winAmount} CR WIN`);
    }
    syncRoom({winner});
@@ -420,9 +466,8 @@ function genCode(){ return "DRFT-"+Math.random().toString(36).substring(2,6).toU
 
 async function createRoom(){
  if(!currentUser){ alert("Login with Gmail first to create room"); return; }
- const bal=getCredits();
- if(bal<stake){ alert("Not enough credits. Buy more."); return; }
- setCredits(bal-stake);
+ // use deductCredits for entry fee
+ if(!deductCredits(stake)){ return; }
  roomId=genCode();
  myColor='gold';
  flipped=false;
@@ -455,15 +500,13 @@ async function joinRoom(){
  if(!code) { alert("Enter room code DRFT-XXXX"); return; }
  if(!code.startsWith("DRFT-")) code="DRFT-"+code.replace("DRFT-","");
  if(!currentUser){ alert("Login first"); return; }
- const bal=getCredits();
- if(bal<stake){ alert("Not enough credits"); return; }
+ if(!deductCredits(stake)){ return; }
  const roomDoc=doc(db,"draughts_rooms",code);
  const snap=await getDoc(roomDoc);
- if(!snap.exists()){ alert("Room not found"); return; }
+ if(!snap.exists()){ addCredits(stake); alert("Room not found"); return; }
  const data=snap.data();
- if(data.status!=='waiting'){ alert("Room already started"); return; }
- if(data.goldUid===currentUser.uid){ alert("You created this room"); return; }
- setCredits(bal-stake);
+ if(data.status!=='waiting'){ addCredits(stake); alert("Room already started"); return; }
+ if(data.goldUid===currentUser.uid){ addCredits(stake); alert("You created this room"); return; }
  roomId=code;
  myColor='black';
  flipped=true; // auto flip for black player

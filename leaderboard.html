@@ -1,0 +1,44 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEADERBOARD - ETHAN EMPIRE</title>
+<script>
+function safeCredits(v,f){ if(f===undefined) f=500; if(v===undefined||v===null) return f; let s=String(v).trim().toLowerCase(); if(s==='undefined'||s==='nan'||s==='') return f; let n=parseInt(v); return isNaN(n)?f:n; }
+</script>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
+<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center} .card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px auto;max-width:700px} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer} table{width:100%;border-collapse:collapse;font-size:13px} th,td{border:1px solid #333;padding:8px;text-align:left} th{background:#222;color:#FFD700} .rank1{background:linear-gradient(90deg,#FFD70022,#000)} .rank2{background:linear-gradient(90deg,#C0C0C022,#000)} .rank3{background:linear-gradient(90deg,#CD7F3222,#000)}</style></head><body>
+<h1>🏆 LEADERBOARD - ETHAN EMPIRE</h1>
+<div class="card" style="display:flex;justify-content:space-between"><span id="authInfo">Checking...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card"><div style="display:flex;gap:6px"><button class="btn" style="flex:1" onclick="loadBy('credits')">Top Credits</button><button class="btn" style="flex:1;background:#222;color:#FFD700;border:1px solid #FFD700" onclick="loadBy('totalWon')">Top Winners</button><button class="btn" style="flex:1;background:#222;color:#00ff88;border:1px solid #00ff88" onclick="loadBy('referralCount')">Top Referrers</button></div></div>
+<div class="card"><div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Player</th><th>Credits</th><th>Won</th><th>Invites</th></tr></thead><tbody id="lbBody"><tr><td colspan=5>Loading...</td></tr></tbody></table></div></div>
+<div class="card" style="font-size:11px;opacity:.7">Live from Firebase chessbyethan_users • Updates every 30s • Play more to rank #1</div>
+<script type="module">
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
+window._fb={auth,db,doc,getDoc,collection,query,orderBy,limit,getDocs,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+const provider=new GoogleAuthProvider(); const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn'); let currentUser=null;
+authBtn.onclick=async()=>{ if(currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
+onAuthStateChanged(auth,u=>{ currentUser=u; if(u){ authInfo.innerText=u.displayName; authBtn.innerText='Sign Out'; loadBy('credits'); }else{ authInfo.innerText='Sign Gmail to see leaderboard'; authBtn.innerText='Sign Gmail'; loadBy('credits'); } });
+async function loadBy(field){
+  let body=document.getElementById('lbBody'); body.innerHTML='<tr><td colspan=5>Loading '+field+'...</td></tr>';
+  try{
+    let q=query(collection(db,'chessbyethan_users'),orderBy(field,'desc'),limit(50));
+    let qs=await getDocs(q);
+    body.innerHTML='';
+    let i=1;
+    qs.forEach(d=>{
+      let data=d.data();
+      let name=(data.displayName||data.email||'Player').substring(0,15);
+      let cls=i==1?'rank1':i==2?'rank2':i==3?'rank3':'';
+      body.innerHTML+=`<tr class="${cls}"><td>${i==1?'🥇':i==2?'🥈':i==3?'🥉':i}</td><td>${name}</td><td>${safeCredits(data.credits,0)}</td><td>${safeCredits(data.totalWon||0,0)}</td><td>${safeCredits(data.referralCount||0,0)}</td></tr>`;
+      i++;
+    });
+    if(body.innerHTML==='') body.innerHTML='<tr><td colspan=5>No players yet - be first!</td></tr>';
+  }catch(e){
+    body.innerHTML='<tr><td colspan=5>Need index: Firestore will ask you to create index for '+field+'. Click link in console or use credits index.</td></tr>';
+    console.error(e);
+    // Fallback to credits
+    if(field!=='credits') loadBy('credits');
+  }
+}
+</script></body></html>

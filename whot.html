@@ -1,5 +1,50 @@
 
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!DOCTYPE html><html><head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+    let el3=document.getElementById('credits'); if(el3) el3.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
+
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WHOT FIXED</title>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
@@ -20,12 +65,12 @@ try{const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"ches
 </script>
 <script>
 const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
-let credits=parseInt(localStorage.getItem('ethan_credits')||'500'); let stake=100, pot=200, roomCode=null, unsub=null;
+let credits=getCredits(); let stake=100, pot=200, roomCode=null, unsub=null;
 let deck=[], my=[], opp=[], center=null, turn=1, pickAccum=0, shapes=['circle','triangle','cross','square','star']; // 1=Golden you, 0=Black opp
 function makeDeck(){let d=[]; let nums=[1,2,3,4,5,7,8,10,11,14]; shapes.forEach(s=>{nums.forEach(n=>{d.push({shape:s,number:n});});}); for(let i=0;i<5;i++) d.push({shape:'whot',number:20}); return shuffle(d);}
 function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a;}
 function updateUI(){
- document.getElementById('credits').innerText=credits; document.getElementById('pot').innerText=pot;
+ document.getElementById('credits').innerText=getCredits(); credits=getCredits(); document.getElementById('pot').innerText=pot;
  document.getElementById('oppCount').innerText=opp.length; document.getElementById('marketCount').innerText=deck.length;
  document.getElementById('turnBadge').innerText=(turn===1?'Golden':'Black')+' Turn '+(pickAccum?`Pick ${pickAccum}`:'');
  // center
@@ -33,12 +78,15 @@ function updateUI(){
  // hands
  let mh=document.getElementById('myHand'); mh.innerHTML=''; my.forEach((c,i)=>{let div=document.createElement('div'); div.className='c'; div.innerHTML=`<div>${icon(c.shape)}</div><div>${c.number}</div><small>${c.shape}</small>`; div.onclick=()=>playCard(i); mh.appendChild(div);});
  let oh=document.getElementById('oppHand'); oh.innerHTML=''; opp.forEach(_=>{let div=document.createElement('div'); div.className='c'; div.innerHTML='🂠'; oh.appendChild(div);});
- if(my.length===0){ alert('YOU WIN! Golden wins! Pot '+(pot*0.9)); credits+=Math.floor(pot*0.9); localStorage.setItem('ethan_credits',credits); updateUI(); }
+ if(my.length===0){ alert('YOU WIN! Golden wins! Pot '+(pot*0.9)); let winAmt=Math.floor(pot*0.9); addCredits(winAmt); credits=getCredits(); updateUI(); }
  if(opp.length===0){ alert('BLACK WINS! Opponent wins'); }
 }
 function icon(s){if(s==='circle')return '●'; if(s==='triangle')return '▲'; if(s==='cross')return '✚'; if(s==='square')return '■'; if(s==='star')return '★'; if(s==='whot')return 'W'; return s;}
 function setStake(s){stake=s; pot=s*2; updateUI();}
 function startLocal(){
+ if(getCredits()<stake){ alert('Not enough credits! You have '+getCredits()+' need '+stake); return; }
+ if(!deductCredits(stake)){ return; }
+ credits=getCredits();
  deck=makeDeck(); my=[]; opp=[]; for(let i=0;i<5;i++){my.push(deck.pop()); opp.push(deck.pop());} center=deck.pop(); while([2,5,8,14].includes(center.number)){deck.unshift(center); center=deck.pop();} turn=1; pickAccum=0; document.getElementById('roomBadge').innerText='Local 2P'; document.getElementById('msg').innerText='Local start - Match shape or number. Golden starts'; updateUI();
 }
 function canPlay(card){
@@ -134,9 +182,9 @@ function drawCard(){
 }
 async function createRoom(){
  if(!window._fb || !window._currentUser){ alert('Sign Gmail for online, or use Local'); startLocal(); return; }
- if(credits<stake){ alert('Need '+stake); return; }
+ if(getCredits()<stake){ alert('Not enough credits! You have '+getCredits()+' need '+stake); return; }
  roomCode='WHOT-'+Math.floor(1000+Math.random()*9000);
- try{ const {doc,setDoc,serverTimestamp,db}=window._fb; await setDoc(doc(db,'whot_rooms',roomCode),{deck,myHand:my,oppHand:opp,center,turn,stake,pot,host:window._currentUser.uid,status:'playing',createdAt:serverTimestamp()}); credits-=stake; localStorage.setItem('ethan_credits',credits); document.getElementById('roomBadge').innerText='Room: '+roomCode+' Host Golden'; listen(roomCode);}catch(e){alert(e.message)}
+ try{ const {doc,setDoc,serverTimestamp,db}=window._fb; await setDoc(doc(db,'whot_rooms',roomCode),{deck,myHand:my,oppHand:opp,center,turn,stake,pot,host:window._currentUser.uid,status:'playing',createdAt:serverTimestamp()}); if(!deductCredits(stake)){ return; } credits=getCredits(); document.getElementById('roomBadge').innerText='Room: '+roomCode+' Host Golden'; listen(roomCode);}catch(e){alert(e.message)}
 }
 async function joinRoom(){
  let code=document.getElementById('roomInput').value.trim().toUpperCase(); if(!code)return alert('Enter code'); if(!window._fb || !window._currentUser) return alert('Sign Gmail'); roomCode=code; try{ const {doc,getDoc,db}=window._fb; let snap=await getDoc(doc(db,'whot_rooms',roomCode)); if(!snap.exists()) return alert('Room not found'); let d=snap.data(); deck=d.deck; my=d.oppHand; opp=d.myHand; center=d.center; turn=d.turn; document.getElementById('roomBadge').innerText='Room: '+roomCode+' Black'; updateUI(); listen(roomCode);}catch(e){alert(e.message)}

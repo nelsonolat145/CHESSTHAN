@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+</script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>HEAD SOCCER - Black vs Gold</title>
@@ -98,6 +140,57 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, serverTimestamp, increment } from "firebase/firestore";
 
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+let ETHAN_CREDITS = safeCredits(localStorage.getItem('ethan_credits'),500);
+function getCredits(){ return safeCredits(localStorage.getItem('ethan_credits'),500); }
+function setCredits(newVal){
+  newVal=safeCredits(newVal,0);
+  localStorage.setItem('ethan_credits', String(newVal));
+  try{
+    let el=document.getElementById('creditBal'); if(el) el.innerText=newVal;
+    let el2=document.getElementById('walletBal'); if(el2) el2.innerText=newVal;
+  }catch(e){}
+  // Firestore sync if logged in
+  try{
+    if(window._fb && window._currentUser && window._fb.doc){
+      window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newVal},{merge:true});
+    }
+  }catch(e){}
+  return newVal;
+}
+function deductCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  if(cur<amount){ alert('Not enough credits! You have '+cur+' need '+amount); return false; }
+  setCredits(cur-amount);
+  return true;
+}
+function addCredits(amount){
+  amount=safeCredits(amount,0);
+  let cur=getCredits();
+  setCredits(cur+amount);
+  return cur+amount;
+}
+
+// Expose globally for inline script and other modules
+window.safeCredits = safeCredits;
+window.getCredits = getCredits;
+window.setCredits = setCredits;
+window.deductCredits = deductCredits;
+window.addCredits = addCredits;
+window.ETHAN_CREDITS = ETHAN_CREDITS;
+// Ensure DOM wallets update
+try{ if(!localStorage.getItem('ethan_credits')) localStorage.setItem('ethan_credits','500'); }catch(e){}
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
   authDomain: "chessbyethan.firebaseapp.com",
@@ -134,17 +227,54 @@ window.buyCredits = function(amount=1000){
   handler.openIframe();
 };
 
-// ---------- WALLET ----------
+// ---------- WALLET (FIXED) ----------
 let myCredits = 0;
+window._fb = { doc, setDoc, db };
 async function refreshWallet(){
   const b = document.getElementById('walletBadge');
-  if(!auth.currentUser){ b.textContent='💰 Wallet: 0 (login)'; myCredits=0; return; }
+  // Always ensure localStorage has a value
+  let localBal = getCredits();
+  // Sync walletBadge + any other bal elements
+  const updateUI = (bal)=>{
+    if(b) b.textContent = '💰 Wallet: '+bal+' credits';
+    try{
+      let el=document.getElementById('creditBal'); if(el) el.innerText=bal;
+      let el2=document.getElementById('walletBal'); if(el2) el2.innerText=bal;
+    }catch(e){}
+  };
+  if(!auth.currentUser){
+    myCredits = localBal;
+    updateUI(localBal);
+    return;
+  }
   try{
+    window._currentUser = auth.currentUser;
     const snap = await getDoc(doc(db,"ethan_credits",auth.currentUser.uid));
-    myCredits = snap.exists()? (snap.data().credits||0) : 0;
-    b.textContent = '💰 Wallet: '+myCredits+' credits';
-  }catch(e){ b.textContent='💰 Wallet: ?'; }
+    let cloudBal = snap.exists()? safeCredits(snap.data().credits, localBal) : localBal;
+    // If cloud higher, sync to local; if local is new install, keep max
+    if(cloudBal !== localBal){
+      // Prefer max to avoid losing credits
+      let merged = Math.max(cloudBal, localBal);
+      // If cloud exists, use cloud as source of truth for logged-in users, but ensure localStorage is updated
+      // For safety, if cloud was from DB, use cloud; else merged
+      let finalBal = snap.exists() ? cloudBal : merged;
+      if(finalBal !== localBal) setCredits(finalBal);
+      else finalBal = localBal;
+      myCredits = finalBal;
+      updateUI(finalBal);
+    } else {
+      myCredits = localBal;
+      updateUI(localBal);
+    }
+  }catch(e){
+    myCredits = localBal;
+    updateUI(localBal);
+  }
 }
+// Initial wallet display from localStorage immediately
+try{ refreshWallet(); }catch(e){}
+setInterval(()=>{ try{ refreshWallet(); }catch(e){} }, 3000);
+
 
 // ---------- AUTH ----------
 const authBadge = document.getElementById('authBadge');
@@ -158,6 +288,8 @@ authBadge.onclick = async ()=>{
   }
 };
 onAuthStateChanged(auth, async (u)=>{
+  window._currentUser = u;
+
   if(u){ authBadge.textContent='⚫ '+ (u.displayName||u.email); authBadge.style.background='var(--gold)'; authBadge.style.color='#000'; }
   else{ authBadge.textContent='⚫ Guest • Click to Login'; authBadge.style.background=''; authBadge.style.color=''; }
   refreshWallet();
@@ -171,8 +303,10 @@ let isHost = false;
 let roomStake = 1000;
 
 async function createRoom(){
-  const stake = parseInt(document.getElementById('stakeSel').value);
-  if(auth.currentUser && myCredits < stake){ alert('Not enough credits'); return; }
+  const stake = safeCredits(document.getElementById('stakeSel').value, 1000);
+  let curBal = getCredits();
+  let checkBal = auth.currentUser ? (myCredits||curBal) : curBal;
+  if(checkBal < stake){ alert('Not enough credits! You have '+checkBal+' need '+stake); return; }
   const code = genCode();
   const ref = doc(db,"headball_rooms",code);
   await setDoc(ref,{
@@ -189,19 +323,25 @@ async function createRoom(){
   document.getElementById('roomInput').value=code;
   listenRoom(code);
   document.getElementById('log').textContent='Room '+code+' created - stake '+stake+' - waiting opponent';
-  // deduct host stake
-  if(auth.currentUser){ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-stake)},{merge:true}); refreshWallet(); }
+  // deduct host stake - FIXED WALLET LOGIC
+  // Always deduct locally via deductCredits
+  if(!deductCredits(stake)){ return; }
+  if(auth.currentUser){ try{ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-stake)},{merge:true}); }catch(e){} }
+  refreshWallet();
 }
 async function joinRoom(){
   const code = (document.getElementById('roomInput').value||'').trim().toUpperCase();
   if(!code) return alert('Enter room code');
-  const stake = parseInt(document.getElementById('stakeSel').value);
+  const stake = safeCredits(document.getElementById('stakeSel').value, 1000);
   const ref = doc(db,"headball_rooms",code);
   const snap = await getDoc(ref);
   if(!snap.exists()) return alert('Room not found');
   const data = snap.data();
   if(data.guest) return alert('Room full');
-  if(auth.currentUser && myCredits < (data.stake||stake)){ alert('Not enough credits'); return; }
+  let needStake = safeCredits(data.stake||stake, 1000);
+  let curBal2 = getCredits();
+  let checkBal2 = auth.currentUser ? (myCredits||curBal2) : curBal2;
+  if(checkBal2 < needStake){ alert('Not enough credits! You have '+checkBal2+' need '+needStake); return; }
   await updateDoc(ref,{
     guest: auth.currentUser?auth.currentUser.uid:'guest_'+Date.now(),
     guestName: auth.currentUser?(auth.currentUser.displayName||auth.currentUser.email):'Guest2',
@@ -209,7 +349,10 @@ async function joinRoom(){
   });
   currentRoomCode=code; isHost=false;
   listenRoom(code);
-  if(auth.currentUser){ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-data.stake)},{merge:true}); refreshWallet(); }
+  // deduct guest stake - FIXED WALLET LOGIC
+  if(!deductCredits(needStake)){ return; }
+  if(auth.currentUser){ try{ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-needStake)},{merge:true}); }catch(e){} }
+  refreshWallet();
 }
 function listenRoom(code){
   if(unsubRoom) unsubRoom();
@@ -234,17 +377,36 @@ async function leaveRoom(){
   document.getElementById('overlay').style.display='flex';
 }
 
-// payout
+// payout - FIXED WALLET LOGIC
 async function payoutWinner(winnerSide){
-  if(!currentRoomCode) return;
+  if(!currentRoomCode){
+    // Local win - still payout pot
+    let pot = safeCredits(roomStake*2, 2000);
+    let winAmount = Math.floor(pot*0.9);
+    addCredits(winAmount);
+    refreshWallet();
+    return;
+  }
   try{
     const ref = doc(db,"headball_rooms",currentRoomCode);
     const snap = await getDoc(ref);
-    if(!snap.exists()) return;
+    if(!snap.exists()){
+      // Room gone but still reward locally
+      let pot = safeCredits(roomStake*2, 2000);
+      let winAmount = Math.floor(pot*0.9);
+      addCredits(winAmount);
+      refreshWallet();
+      return;
+    }
     const data = snap.data();
-    const pot = data.pot|| (data.stake*2);
+    const pot = safeCredits(data.pot || (data.stake*2), roomStake*2);
     const winAmount = Math.floor(pot*0.9);
     const winnerUid = winnerSide==='gold'? data.host : data.guest;
+    const isMeWinner = (winnerSide==='gold' && isHost) || (winnerSide==='black' && !isHost);
+    // Local reward for me if I won
+    if(isMeWinner){
+      addCredits(winAmount);
+    }
     if(winnerUid && !String(winnerUid).startsWith('guest_')){
       await setDoc(doc(db,"ethan_credits",winnerUid),{credits: increment(winAmount)},{merge:true});
     }
@@ -292,6 +454,21 @@ function resetRound(){
 function startGame(opts={}){
   gameMode = opts.mode||'local';
   cpuEnabled = (opts.mode==='cpu');
+  // FIXED: deduct entry fee / stake on game start
+  roomStake = safeCredits(opts.stake ?? document.getElementById('stakeSel').value, 1000);
+  // For local/cpu modes, require stake if user has no room; for online, stake already deducted in create/join
+  if(!opts.code && gameMode!=='online'){
+    // Optional entry fee for solo modes - if insufficient, block
+    let cur = getCredits();
+    if(cur < roomStake){
+      alert('Not enough credits! You have '+cur+' need '+roomStake+' to start');
+      return;
+    }
+    if(!deductCredits(roomStake)){
+      return;
+    }
+    refreshWallet();
+  }
   scoreG=0; scoreB=0;
   gameTime=60;
   resetRound();
@@ -299,16 +476,38 @@ function startGame(opts={}){
   overlayEl.style.display='none';
   lastT=performance.now();
   requestAnimationFrame(loop);
-  roomStake = opts.stake||parseInt(document.getElementById('stakeSel').value);
 }
 
 function endGame(){
   gameRunning=false;
   overlayEl.style.display='flex';
   let msg = scoreG===scoreB? 'DRAW! 🤝' : (scoreG>scoreB? 'GOLDEN WINS! 🏆' : 'BLACK WINS! 🏆');
-  document.getElementById('log').innerHTML = '<div style="font-size:28px;font-weight:900;margin:10px">'+msg+' '+scoreG+'-'+scoreB+'</div><div>Stake '+(roomStake||1000)+' pot '+(roomStake*2)+' winner gets 90%</div>';
+  let potDisplay = safeCredits(roomStake*2, 2000);
+  document.getElementById('log').innerHTML = '<div style="font-size:28px;font-weight:900;margin:10px">'+msg+' '+scoreG+'-'+scoreB+'</div><div>Stake '+safeCredits(roomStake,1000)+' pot '+potDisplay+' winner gets 90%</div>';
   const winner = scoreG>scoreB? 'gold' : (scoreB>scoreG? 'black' : null);
-  if(winner && currentRoomCode) payoutWinner(winner);
+  if(winner){
+    if(currentRoomCode){
+      payoutWinner(winner);
+    } else {
+      // Local/CPU mode - reward winner 90% pot
+      let winAmt = Math.floor(potDisplay*0.9);
+      if(scoreG!==scoreB){
+        addCredits(winAmt);
+        document.getElementById('log').innerHTML += '<div>🎉 +'+winAmt+' credits added! New balance: '+getCredits()+'</div>';
+      } else {
+        // Draw - refund stake
+        addCredits(roomStake);
+        document.getElementById('log').innerHTML += '<div>🤝 Draw - stake refunded: '+roomStake+' credits</div>';
+      }
+      refreshWallet();
+    }
+  } else {
+    // Draw with no winner but no room - refund
+    if(!currentRoomCode){
+      addCredits(roomStake);
+      refreshWallet();
+    }
+  }
 }
 
 function physics(dt){
@@ -491,10 +690,10 @@ document.getElementById('createBtn').onclick=()=>createRoom();
 document.getElementById('joinBtn').onclick=()=>joinRoom();
 document.getElementById('leaveBtn').onclick=()=>leaveRoom();
 document.getElementById('buyBtn').onclick=()=>{
-  const amt=parseInt(document.getElementById('stakeSel').value)||1000;
+  const amt=safeCredits(document.getElementById('stakeSel').value,1000);
   buyCredits(amt);
 };
-document.getElementById('stakeSel').addEventListener('change',e=>{ roomStake=parseInt(e.target.value); });
+document.getElementById('stakeSel').addEventListener('change',e=>{ roomStake=safeCredits(e.target.value,1000); });
 
 </script>
 </body>
