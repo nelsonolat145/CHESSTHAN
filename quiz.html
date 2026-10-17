@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QUIZ BATTLE - Trivia for Money</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+  }
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#c9a600;--dark:#111;--card:#151515;--border:2px solid var(--gold);--glow:0 0 18px rgba(255,215,0,.45);}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;color:var(--gold);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+h1,h2,.bebas{font-family:'Bebas Neue',sans-serif;letter-spacing:1px}
+.topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:var(--border);background:#000;position:sticky;top:0;z-index:10;box-shadow:var(--glow)}
+.top-left,.top-mid,.top-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:#000;color:var(--gold);border:2px solid var(--gold);padding:8px 14px;border-radius:10px;font-weight:800;cursor:pointer;transition:.2s;box-shadow:var(--glow);text-transform:uppercase;font-size:12px}
+.btn:hover{background:var(--gold);color:#000;transform:translateY(-1px)}
+.btn.active{background:var(--gold);color:#000}
+.btn.small{padding:6px 10px;font-size:11px}
+.inp{background:#111;border:2px solid var(--gold);color:var(--gold);padding:8px 12px;border-radius:10px;outline:none;min-width:140px}
+.inp::placeholder{color:#665c00}
+.wallet{background:linear-gradient(135deg,#1a1a00,#000);border:2px solid var(--gold);padding:8px 12px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:var(--glow)}
+.stake-row{display:flex;gap:6px}
+.stake-btn{border:2px solid var(--gold);background:#000;color:var(--gold);padding:6px 10px;border-radius:999px;font-weight:800;font-size:11px;cursor:pointer}
+.stake-btn.active,.stake-btn:hover{background:var(--gold);color:#000}
+#main{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px;gap:18px}
+.mode-bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.card{width:100%;max-width:820px;background:var(--card);border:var(--border);border-radius:18px;box-shadow:var(--glow);padding:20px}
+.scoreboard{display:flex;justify-content:space-between;gap:10px;margin-bottom:14px}
+.player-box{flex:1;border:2px solid var(--gold);border-radius:14px;padding:12px;text-align:center;background:#000;transition:.3s}
+.player-box.turn{transform:scale(1.04);box-shadow:0 0 25px rgba(255,215,0,.7);background:#1a1600}
+.player-box.winner{border-color:#fff;box-shadow:0 0 35px var(--gold)}
+.p-name{font-weight:800;font-size:13px;opacity:.9}
+.p-score{font-family:'Bebas Neue';font-size:42px;line-height:1}
+.p-meta{font-size:11px;opacity:.7}
+.q-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;font-weight:800}
+.badge{border:2px solid var(--gold);padding:4px 10px;border-radius:999px;background:#000}
+.timer-bar{height:10px;background:#222;border:2px solid var(--gold);border-radius:999px;overflow:hidden;margin-bottom:14px}
+.timer-fill{height:100%;background:linear-gradient(90deg,var(--gold),#fff);width:100%;transition:width .1s linear}
+.question-text{font-size:22px;font-weight:800;line-height:1.25;margin-bottom:18px;min-height:60px}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.options{grid-template-columns:1fr}}
+.opt{border:2px solid var(--gold);background:#000;color:var(--gold);padding:14px 12px;border-radius:14px;cursor:pointer;font-weight:700;text-align:left;transition:.15s;position:relative}
+.opt:hover{transform:translateY(-2px);box-shadow:var(--glow);background:#111}
+.opt.correct{background:var(--gold);color:#000}
+.opt.wrong{background:#5a0000;color:#fff;border-color:#ff3b3b}
+.opt.disabled{pointer-events:none;opacity:.6}
+.center{text-align:center}
+.big{font-size:56px;font-family:'Bebas Neue';line-height:1}
+.sub{font-size:13px;opacity:.8}
+.room-code{font-family:'Bebas Neue';font-size:28px;letter-spacing:3px;background:#000;border:2px dashed var(--gold);padding:8px 14px;border-radius:10px;display:inline-block;margin:8px 0}
+.log{font-size:11px;opacity:.6;margin-top:10px;max-height:80px;overflow:auto}
+.hidden{display:none !important}
+#winnerOverlay{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:99;padding:20px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="top-left">
+    <span class="bebas" style="font-size:28px;text-shadow:0 0 12px var(--gold)">QUIZ BATTLE</span>
+    <button id="authBtn" class="btn small">LOGIN GMAIL</button>
+    <span id="userInfo" class="sub hidden"></span>
+  </div>
+  <div class="top-mid">
+    <div class="wallet">
+      <span style="font-size:12px;font-weight:800">WALLET:</span>
+      <span id="creditBal" style="font-family:'Bebas Neue';font-size:20px">0</span>
+      <button class="btn small" onclick="buyCredits(1000)">BUY 1000</button>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:800;margin-bottom:3px">STAKE (NGN)</div>
+      <div class="stake-row">
+        <button class="stake-btn active" data-stake="100" onclick="setStake(100)">100</button>
+        <button class="stake-btn" data-stake="500" onclick="setStake(500)">500</button>
+        <button class="stake-btn" data-stake="1000" onclick="setStake(1000)">1K</button>
+        <button class="stake-btn" data-stake="5000" onclick="setStake(5000)">5K</button>
+      </div>
+    </div>
+    <div class="wallet">
+      <span style="font-size:10px;font-weight:800">POT:</span>
+      <span id="potBal" style="font-family:'Bebas Neue';font-size:18px">0</span>
+      <span id="potInfo" style="font-size:10px"></span>
+    </div>
+  </div>
+  <div class="top-right">
+    <button class="btn small" onclick="setMode('local')">Local 2P</button>
+    <button class="btn small" onclick="createRoom()">Create Room</button>
+    <input id="joinCode" class="inp" placeholder="QUIZ-XXXX" style="width:130px"/>
+    <button class="btn small" onclick="joinRoom()">Join</button>
+    <button class="btn small" onclick="leaveRoom()">Leave</button>
+  </div>
+</div>
+
+<div id="main">
+  <div class="mode-bar"><span id="modeLabel" class="badge">MODE: LOCAL 2P</span><span id="roomLabel" class="badge hidden"></span><span id="catLabel" class="badge">MIX</span></div>
+
+  <div class="card" id="setupCard">
+    <div class="center">
+      <div class="big">TRIVIA FOR MONEY</div>
+      <p class="sub">10 Questions • Faster correct answer = more points • Winner takes 90% of pot</p>
+      <div style="margin:16px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <input id="p1Name" class="inp" placeholder="Player 1 Name (White)" value="Player 1"/>
+        <input id="p2Name" class="inp" placeholder="Player 2 Name (Black)" value="Player 2"/>
+      </div>
+      <button class="btn" onclick="startGame()">START BATTLE</button>
+      <div id="roomInfo" class="hidden"><div class="room-code" id="roomCodeDisplay"></div><div class="sub">Share this code with opponent</div></div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="gameCard">
+    <div class="scoreboard">
+      <div class="player-box" id="p1Box"><div class="p-name" id="p1NameDisp">PLAYER 1</div><div class="p-score" id="p1Score">0</div><div class="p-meta" id="p1Meta">White • Turn</div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="bebas" style="font-size:22px">VS</div><div id="qCount" class="badge">Q 1/10</div></div>
+      <div class="player-box" id="p2Box"><div class="p-name" id="p2NameDisp">PLAYER 2</div><div class="p-score" id="p2Score">0</div><div class="p-meta" id="p2Meta">Black</div></div>
+    </div>
+    <div class="q-meta"><span id="qCat" class="badge">CAT</span><span id="qTimerText" class="badge">15.0s</span></div>
+    <div class="timer-bar"><div id="timerFill" class="timer-fill"></div></div>
+    <div id="qText" class="question-text">Question will appear here...</div>
+    <div id="opts" class="options"></div>
+    <div id="feedback" class="center sub" style="margin-top:14px;min-height:20px"></div>
+    <div class="log" id="gameLog"></div>
+  </div>
+</div>
+
+<div id="winnerOverlay" class="hidden"><div class="card center" style="max-width:420px"><div id="winTitle" class="big">WINNER!</div><div id="winDetails" class="sub" style="margin:10px 0"></div><div id="winPot" class="bebas" style="font-size:32px"></div><button class="btn" onclick="closeWinner()">PLAY AGAIN</button></div></div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection } from "firebase/firestore";
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.firebasestorage.app",
+  messagingSenderId: "786505186377",
+  appId: "1:786505186377:web:0bd92df139cf66ff3e0d35",
+  measurementId: "G-D4H1K6ZT7W"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+window._fb = { auth, db, doc, setDoc, getDoc, onSnapshot, updateDoc, collection };
+
+const authBtn = document.getElementById('authBtn');
+const userInfo = document.getElementById('userInfo');
+authBtn.onclick = async ()=>{
+  if(auth.currentUser){ await signOut(auth); } else { await signInWithPopup(auth, provider); }
+};
+onAuthStateChanged(auth, u=>{
+  if(u){ authBtn.textContent='LOGOUT'; userInfo.textContent=u.displayName||u.email; userInfo.classList.remove('hidden'); window.playerName=u.displayName||'Player'; }
+  else { authBtn.textContent='LOGIN GMAIL'; userInfo.classList.add('hidden'); }
+});
+</script>
+
+<script>
+// --- WALLET ---
+const CRED_KEY='ethan_credits';
+function getCredits(){ return parseInt(localStorage.getItem(CRED_KEY)||'2500'); }
+function setCredits(v){ localStorage.setItem(CRED_KEY, v); renderWallet(); }
+function renderWallet(){ document.getElementById('creditBal').textContent=getCredits(); updatePot(); }
+function updatePot(){
+  const stake=window._stake||100;
+  const players=window._playersCount||2;
+  const pot=stake*players;
+  document.getElementById('potBal').textContent='NGN '+pot;
+  document.getElementById('potInfo').textContent='Winner 90% = '+(Math.floor(pot*0.9));
+}
+window._stake=100; window._playersCount=2;
+function setStake(v){
+  window._stake=v;
+  document.querySelectorAll('.stake-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.stake)===v));
+  updatePot();
+}
+renderWallet();
+
+function buyCredits(amount){
+  const key='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
+  const email = (window._fb && window._fb.auth && window._fb.auth.currentUser && window._fb.auth.currentUser.email) || 'player@quizbattle.com';
+  const handler = PaystackPop.setup({
+    key: key,
+    email: email,
+    amount: amount*100,
+    currency:'NGN',
+    callback: function(res){
+      const cur=getCredits();
+      setCredits(cur+amount);
+      alert('Credits added: '+amount+' Ref:'+res.reference);
+      log('Paystack success '+res.reference);
+    },
+    onClose: function(){ log('Paystack closed'); }
+  });
+  handler.openIframe();
+}
+
+// --- QUESTIONS 50 ---
+const QUESTIONS=[
+{q:"Who won AFCON 2023?",cat:"Naija Football",opts:["Nigeria","Côte d'Ivoire","Senegal","Morocco"],a:1},
+{q:"Which club did Victor Osimhen join in 2020?",cat:"Naija Football",opts:["Napoli","Lille","Wolfsburg","Inter"],a:0},
+{q:"Who is Nigeria's highest AFCON goal scorer?",cat:"Naija Football",opts:["Rashidi Yekini","Kanu","Okocha","Mikel"],a:0},
+{q:"Arsenal's Invincibles season was?",cat:"Naija Football",opts:["2003/04","2004/05","2002/03","2001/02"],a:0},
+{q:"How many Ballon d'Or does Messi have?",cat:"Naija Football",opts:["7","8","6","5"],a:1},
+{q:"Wizkid's debut album is?",cat:"Afrobeats",opts:["Superstar","Ayo","Made in Lagos","More Love"],a:0},
+{q:"Who sang 'Calm Down'?",cat:"Afrobeats",opts:["Rema","Burna Boy","Ayra Starr","Fireboy"],a:0},
+{q:"Burna Boy Grammy winning album?",cat:"Afrobeats",opts:["Twice As Tall","African Giant","Outside","Love Damini"],a:0},
+{q:"Davido's real surname?",cat:"Afrobeats",opts:["Adeleke","Adeyemi","Alakija","Adebayo"],a:0},
+{q:"'Ojapiano' artist?",cat:"Afrobeats",opts:["Kcee","Flavour","KCee & OJ","P-Square"],a:0},
+{q:"Tems featured on which Drake album?",cat:"Afrobeats",opts:["Certified Lover Boy","Her Loss","Honestly Nevermind","CLB"],a:0},
+{q:"Ayra Starr label?",cat:"Afrobeats",opts:["Mavin","YBNL","DMW","Starboy"],a:0},
+{q:"Who owns YBNL?",cat:"Afrobeats",opts:["Olamide","Phyno","Lil Kesh","Adekunle Gold"],a:0},
+{q:"Fela Kuti genre?",cat:"Afrobeats",opts:["Afrobeat","Afrobeats","Jazz","Fuji"],a:0},
+{q:"Asake's real name?",cat:"Afrobeats",opts:["Ahmed Ololade","Adekunle Kosoko","Damini Ogulu","Adedamola Adefolahan"],a:0},
+{q:"Capital of Nigeria?",cat:"General",opts:["Lagos","Abuja","Kano","Port Harcourt"],a:1},
+{q:"How many geopolitical zones?",cat:"General",opts:["6","5","7","8"],a:0},
+{q:"Largest ocean?",cat:"General",opts:["Pacific","Atlantic","Indian","Arctic"],a:0},
+{q:"2+2*2 = ?",cat:"General",opts:["6","8","4","10"],a:0},
+{q:"Element symbol Au?",cat:"General",opts:["Gold","Silver","Argon","Aluminium"],a:0},
+{q:"Fastest land animal?",cat:"General",opts:["Cheetah","Leopard","Jaguar","Tiger"],a:0},
+{q:"Longest river in Africa?",cat:"General",opts:["Nile","Niger","Congo","Zambezi"],a:0},
+{q:"Who painted Mona Lisa?",cat:"General",opts:["Da Vinci","Michelangelo","Raphael","Van Gogh"],a:0},
+{q:"Nigeria independence year?",cat:"General",opts:["1960","1963","1959","1961"],a:0},
+{q:"How many continents?",cat:"General",opts:["7","5","6","8"],a:0},
+{q:"JAMB full meaning?",cat:"JAMB",opts:["Joint Admissions Matriculation Board","Joint Admission and Matriculation Board","Joint Admissive Matriculation Board","Joint Admission Mat Board"],a:1},
+{q:"UTME subjects for Medicine?",cat:"JAMB",opts:["Eng, Bio, Chem, Phys","Eng, Math, Chem, Bio","Eng, Phys, Chem, Math","Eng, Bio, Agric, Chem"],a:0},
+{q:"Solve: 3x=12 x=?",cat:"JAMB",opts:["4","3","6","12"],a:0},
+{q:"Synonym of 'Benevolent'?",cat:"JAMB",opts:["Kind","Wicked","Selfish","Harsh"],a:0},
+{q:"Past tense of go?",cat:"JAMB",opts:["Went","Gone","Goes","Going"],a:0},
+{q:"Formula for area of circle?",cat:"JAMB",opts:["πr²","2πr","πd","l×b"],a:0},
+{q:"Photosynthesis takes place in?",cat:"JAMB",opts:["Chloroplast","Mitochondria","Nucleus","Ribosome"],a:0},
+{q:"First man on moon?",cat:"General",opts:["Neil Armstrong","Buzz Aldrin","Yuri Gagarin","John Glenn"],a:0},
+{q:"Who is Burna Boy's sister manager?",cat:"Afrobeats",opts:["Ronami","Nissi","Sasha","Yvonne"],a:0},
+{q:"Osimhen jersey number at Napoli?",cat:"Naija Football",opts:["9","7","10","11"],a:0},
+{q:"Super Eagles coach at 2023 AFCON?",cat:"Naija Football",opts:["Peseiro","Rohr","Eguavoen","Siasia"],a:0},
+{q:"Chelsea owner 2023?",cat:"Naija Football",opts:["Todd Boehly","Abramovich","Sheikh","Ratcliffe"],a:0},
+{q:"Meaning of 'Sapa' slang?",cat:"Afrobeats",opts:["Broke","Rich","Drunk","High"],a:0},
+{q:"Rema's label?",cat:"Afrobeats",opts:["Mavin/Jonzing","YBNL","DMW","Chocolate City"],a:0},
+{q:"Currency of Japan?",cat:"General",opts:["Yen","Won","Dollar","Yuan"],a:0},
+{q:"Binary 101 in decimal?",cat:"JAMB",opts:["5","3","6","4"],a:0},
+{q:"Which blood group universal donor?",cat:"JAMB",opts:["O","AB","A","B"],a:0},
+{q:"Nigeria's flag designer?",cat:"General",opts:["Taiwo Akinkunmi","Wole Soyinka","Chinua Achebe","Awo"],a:0},
+{q:"Largest state in Nigeria by area?",cat:"General",opts:["Niger","Borno","Taraba","Kaduna"],a:0},
+{q:"Instrument with keys?",cat:"General",opts:["Piano","Guitar","Trumpet","Drum"],a:0},
+{q:"Hottest planet?",cat:"General",opts:["Venus","Mercury","Jupiter","Mars"],a:0},
+{q:"Author Things Fall Apart?",cat:"JAMB",opts:["Chinua Achebe","Wole Soyinka","Chimamanda","Ngugi"],a:0},
+{q:"√64?",cat:"JAMB",opts:["8","6","7","32"],a:0},
+{q:"Sango is god of?",cat:"General",opts:["Thunder","Water","War","Fertility"],a:0},
+{q:"Wizkid real name?",cat:"Afrobeats",opts:["Ayodeji Balogun","David Adeleke","Oyinkansola","Stanley Omah"],a:0}
+];
+
+// --- GAME STATE ---
+let mode='local'; // local, online_host, online_join
+let roomCode=null;
+let unsub=null;
+let gameState=null;
+let timerInt=null;
+let qStartTime=0;
+let timeLeft=15;
+let localTurn=0; // 0=p1 answering, 1=p2 answering same Q
+let localQIdx=0;
+let matchQs=[];
+let scores=[0,0];
+let answered=[false,false]; // for local same Q, whether each player answered
+let currentAnswers=[null,null];
+let isOnline=false;
+let isHost=false;
+
+function log(m){ const el=document.getElementById('gameLog'); el.innerHTML='<div>> '+m+'</div>'+el.innerHTML; }
+
+function setMode(m){
+  mode=m;
+  isOnline = m.startsWith('online');
+  document.getElementById('modeLabel').textContent='MODE: '+m.toUpperCase();
+}
+window.setMode = setMode;
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a;}
+
+function pickQuestions(n=10){
+  const copy=[...QUESTIONS];
+  shuffle(copy);
+  return copy.slice(0,n);
+}
+
+function startGame(){
+  const p1=document.getElementById('p1Name').value||'Player 1';
+  const p2=document.getElementById('p2Name').value||'Player 2';
+  window._playersCount=2;
+  if(getCredits() < window._stake){ alert('Not enough credits! Buy credits.'); return; }
+  // deduct stake
+  setCredits(getCredits()-window._stake);
+  if(isOnline){
+    if(!roomCode){ alert('Create or Join room first'); return; }
+    // online start handled by room creation
+    return;
+  }
+  // LOCAL
+  document.getElementById('setupCard').classList.add('hidden');
+  document.getElementById('gameCard').classList.remove('hidden');
+  document.getElementById('p1NameDisp').textContent=p1.toUpperCase();
+  document.getElementById('p2NameDisp').textContent=p2.toUpperCase();
+  matchQs=pickQuestions(10);
+  scores=[0,0];
+  localQIdx=0;
+  localTurn=0;
+  answered=[false,false];
+  currentAnswers=[null,null];
+  renderScores();
+  nextLocalQuestion();
+}
+window.startGame=startGame;
+
+function renderScores(){
+  document.getElementById('p1Score').textContent=scores[0];
+  document.getElementById('p2Score').textContent=scores[1];
+  document.getElementById('p1Box').classList.toggle('turn', !isOnline ? localTurn===0 : false);
+  document.getElementById('p2Box').classList.toggle('turn', !isOnline ? localTurn===1 : false);
+}
+
+function nextLocalQuestion(){
+  if(localQIdx>=10){ endGame(); return; }
+  const q=matchQs[localQIdx];
+  document.getElementById('qCount').textContent=`Q ${localQIdx+1}/10`;
+  document.getElementById('qCat').textContent=q.cat.toUpperCase();
+  document.getElementById('qText').textContent=q.q;
+  const optsDiv=document.getElementById('opts');
+  optsDiv.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='opt';
+    b.textContent=(['A','B','C','D'][i]+'. '+o);
+    b.onclick=()=>handleLocalAnswer(i);
+    optsDiv.appendChild(b);
+  });
+  document.getElementById('feedback').textContent = (localTurn===0? document.getElementById('p1NameDisp').textContent : document.getElementById('p2NameDisp').textContent) + ' turn - answer!';
+  // auto flip visual if black player turn (gold border flip concept)
+  document.getElementById('gameCard').style.transform = localTurn===1 ? 'rotateX(2deg)' : 'none';
+  startTimer(()=>{ // timeout
+    handleLocalAnswer(-1,true);
+  });
+}
+
+function handleLocalAnswer(idx,timeout=false){
+  stopTimer();
+  const q=matchQs[localQIdx];
+  const correct=q.a;
+  const opts=document.querySelectorAll('.opt');
+  opts.forEach((b,i)=>{
+    b.classList.add('disabled');
+    if(i===correct) b.classList.add('correct');
+    if(i===idx && idx!==correct) b.classList.add('wrong');
+  });
+  let pts=0;
+  if(idx===correct){
+    const elapsed=15-timeLeft;
+    const speedBonus=Math.max(0, Math.floor((15-elapsed)* (100/15) )); // faster = more
+    pts = 20 + speedBonus; // max 120? cap 100
+    if(pts>100) pts=100;
+    if(timeout) pts=0;
+  }
+  scores[localTurn]+=pts;
+  currentAnswers[localTurn]=idx;
+  answered[localTurn]=true;
+  renderScores();
+  document.getElementById('feedback').textContent = (idx===correct? `CORRECT +${pts}` : (idx===-1? 'TIME UP!':'WRONG')) + ` - ${q.opts[correct]}`;
+  setTimeout(()=>{
+    if(localTurn===0){
+      localTurn=1;
+      // same question second player
+      renderScores();
+      const q2=matchQs[localQIdx];
+      const optsDiv=document.getElementById('opts');
+      optsDiv.innerHTML='';
+      q2.opts.forEach((o,i)=>{
+        const b=document.createElement('button');
+        b.className='opt';
+        b.textContent=(['A','B','C','D'][i]+'. '+o);
+        b.onclick=()=>handleLocalAnswer(i);
+        optsDiv.appendChild(b);
+      });
+      document.getElementById('feedback').textContent = document.getElementById('p2NameDisp').textContent + ' turn - same question!';
+      document.getElementById('gameCard').style.transform='rotateX(2deg)';
+      startTimer(()=>{ handleLocalAnswer(-1,true); });
+    } else {
+      // both done, next Q
+      localQIdx++;
+      localTurn=0;
+      answered=[false,false];
+      nextLocalQuestion();
+    }
+  },1500);
+}
+
+function startTimer(onExpire){
+  timeLeft=15;
+  qStartTime=Date.now();
+  const fill=document.getElementById('timerFill');
+  const txt=document.getElementById('qTimerText');
+  fill.style.width='100%';
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    const elapsed=(Date.now()-qStartTime)/1000;
+    timeLeft=Math.max(0,15-elapsed);
+    txt.textContent=timeLeft.toFixed(1)+'s';
+    fill.style.width=(timeLeft/15*100)+'%';
+    if(timeLeft<=0){ clearInterval(timerInt); onExpire(); }
+  },80);
+}
+function stopTimer(){ clearInterval(timerInt); }
+
+function endGame(){
+  stopTimer();
+  const p1Name=document.getElementById('p1NameDisp').textContent;
+  const p2Name=document.getElementById('p2NameDisp').textContent;
+  let winnerIdx = scores[0]>=scores[1]?0:1;
+  let winnerName = winnerIdx===0?p1Name:p2Name;
+  const pot=window._stake*2;
+  const winAmt=Math.floor(pot*0.9);
+  document.getElementById('winTitle').textContent = winnerName+' WINS!';
+  document.getElementById('winDetails').textContent=`${p1Name}: ${scores[0]} pts | ${p2Name}: ${scores[1]} pts - 10 Questions`;
+  document.getElementById('winPot').textContent='WIN: NGN '+winAmt;
+  document.getElementById('winnerOverlay').classList.remove('hidden');
+  // credit winner if local, give to winner wallet? For local, we add to local wallet as winner pot
+  const cur=getCredits();
+  setCredits(cur+winAmt);
+  log(`Game over winner ${winnerName} +${winAmt}`);
+}
+
+window.closeWinner=()=>{
+  document.getElementById('winnerOverlay').classList.add('hidden');
+  document.getElementById('gameCard').classList.add('hidden');
+  document.getElementById('setupCard').classList.remove('hidden');
+};
+
+// --- ONLINE ROOMS ---
+async function createRoom(){
+  if(!window._fb){ alert('Firebase loading...'); return; }
+  const {doc, setDoc, collection, db} = {doc:window._fb.doc, setDoc:window._fb.setDoc, collection:window._fb.collection, db:window._fb.db};
+  const code='QUIZ-'+Math.random().toString(36).slice(2,6).toUpperCase();
+  roomCode=code;
+  isHost=true;
+  isOnline=true;
+  setMode('online_host');
+  matchQs=pickQuestions(10);
+  const payload={
+    code:code,
+    createdAt: Date.now(),
+    hostName: (window._fb.auth.currentUser?.displayName||document.getElementById('p1Name').value||'Host'),
+    hostId: window._fb.auth.currentUser?.uid||'host_'+Math.random().toString(36).slice(2),
+    joinName: '',
+    joinId:'',
+    questions: matchQs,
+    currentIdx:0,
+    scores:{host:0,join:0},
+    status:'waiting',
+    answers:{host:null,join:null},
+    stake: window._stake
+  };
+  // Use collection quiz_rooms
+  try{
+    await setDoc(doc(db,'quiz_rooms',code), payload);
+    document.getElementById('roomCodeDisplay').textContent=code;
+    document.getElementById('roomInfo').classList.remove('hidden');
+    document.getElementById('roomLabel').textContent='ROOM: '+code; document.getElementById('roomLabel').classList.remove('hidden');
+    document.getElementById('setupCard').classList.remove('hidden');
+    log('Room created '+code);
+    listenRoom(code);
+  }catch(e){ alert('Firestore error '+e.message); }
+}
+window.createRoom=createRoom;
+
+async function joinRoom(){
+  const codeInput=document.getElementById('joinCode').value.trim().toUpperCase();
+  if(!codeInput){ alert('Enter code'); return; }
+  const {doc, getDoc, updateDoc, db} = {doc:window._fb.doc, getDoc:window._fb.getDoc, updateDoc:window._fb.updateDoc, db:window._fb.db};
+  try{
+    const snap=await getDoc(doc(db,'quiz_rooms',codeInput));
+    if(!snap.exists()){ alert('Room not found'); return; }
+    roomCode=codeInput;
+    isHost=false;
+    isOnline=true;
+    setMode('online_join');
+    const myName=document.getElementById('p2Name').value||(window._fb.auth.currentUser?.displayName||'Guest');
+    const myId=window._fb.auth.currentUser?.uid||'join_'+Math.random().toString(36).slice(2);
+    await updateDoc(doc(db,'quiz_rooms',codeInput), {joinName:myName, joinId:myId, status:'ready'});
+    document.getElementById('roomLabel').textContent='ROOM: '+codeInput; document.getElementById('roomLabel').classList.remove('hidden');
+    log('Joined '+codeInput);
+    listenRoom(codeInput);
+  }catch(e){ alert(e.message); }
+}
+window.joinRoom=joinRoom;
+
+function listenRoom(code){
+  const {doc, onSnapshot, db, updateDoc} = {doc:window._fb.doc, onSnapshot:window._fb.onSnapshot, db:window._fb.db, updateDoc:window._fb.updateDoc};
+  if(unsub) unsub();
+  unsub=onSnapshot(doc(db,'quiz_rooms',code), (snap)=>{
+    if(!snap.exists()) return;
+    const data=snap.data();
+    gameState=data;
+    if(data.status==='waiting'){
+      document.getElementById('setupCard').classList.remove('hidden');
+      document.getElementById('feedback')?.textContent && (document.getElementById('feedback').textContent='Waiting for opponent...');
+      if(isHost && data.joinId){ // auto start when joined
+        updateDoc(doc(db,'quiz_rooms',code), {status:'playing'});
+      }
+      return;
+    }
+    if(data.status==='ready' && isHost){
+      updateDoc(doc(db,'quiz_rooms',code), {status:'playing'});
+      return;
+    }
+    if(data.status==='playing'){
+      // start game UI
+      document.getElementById('setupCard').classList.add('hidden');
+      document.getElementById('gameCard').classList.remove('hidden');
+      document.getElementById('p1NameDisp').textContent=(data.hostName||'HOST').toUpperCase();
+      document.getElementById('p2NameDisp').textContent=(data.joinName||'GUEST').toUpperCase();
+      renderOnlineQuestion(data);
+    }
+    if(data.status==='finished'){
+      const hostScore=data.scores.host; const joinScore=data.scores.join;
+      scores=[hostScore,joinScore];
+      document.getElementById('p1Score').textContent=hostScore; document.getElementById('p2Score').textContent=joinScore;
+      const winnerName = hostScore>=joinScore? data.hostName : data.joinName;
+      document.getElementById('winTitle').textContent=winnerName+' WINS!';
+      document.getElementById('winDetails').textContent=`${data.hostName}: ${hostScore} | ${data.joinName}: ${joinScore}`;
+      document.getElementById('winPot').textContent='POT: NGN '+Math.floor((data.stake*2)*0.9);
+      document.getElementById('winnerOverlay').classList.remove('hidden');
+    }
+  });
+}
+
+let lastRenderedIdx=-1;
+function renderOnlineQuestion(data){
+  const idx=data.currentIdx;
+  if(idx>=10){ return; }
+  if(idx!==lastRenderedIdx){
+    lastRenderedIdx=idx;
+    const q=data.questions[idx];
+    document.getElementById('qCount').textContent=`Q ${idx+1}/10`;
+    document.getElementById('qCat').textContent=q.cat.toUpperCase();
+    document.getElementById('qText').textContent=q.q;
+    const optsDiv=document.getElementById('opts');
+    optsDiv.innerHTML='';
+    q.opts.forEach((o,i)=>{
+      const b=document.createElement('button');
+      b.className='opt';
+      b.textContent=(['A','B','C','D'][i]+'. '+o);
+      b.onclick=()=>submitOnlineAnswer(i);
+      optsDiv.appendChild(b);
+    });
+    document.getElementById('p1Score').textContent=data.scores.host;
+    document.getElementById('p2Score').textContent=data.scores.join;
+    // timer - only host drives advance, but both show timer
+    if(isHost){
+      startTimerOnline();
+    } else {
+      // guest just visual timer
+      startTimer(()=>{});
+    }
+    document.getElementById('feedback').textContent='Answer fast! +100 max';
+  }
+}
+
+function startTimerOnline(){
+  timeLeft=15;
+  qStartTime=Date.now();
+  const fill=document.getElementById('timerFill');
+  const txt=document.getElementById('qTimerText');
+  fill.style.width='100%';
+  clearInterval(timerInt);
+  timerInt=setInterval(async ()=>{
+    const elapsed=(Date.now()-qStartTime)/1000;
+    timeLeft=Math.max(0,15-elapsed);
+    txt.textContent=timeLeft.toFixed(1)+'s';
+    fill.style.width=(timeLeft/15*100)+'%';
+    if(timeLeft<=0){
+      clearInterval(timerInt);
+      // host advances
+      await advanceOnlineQuestion();
+    } else {
+      // if both answered early, advance
+      if(gameState && gameState.answers.host!==null && gameState.answers.join!==null){
+        clearInterval(timerInt);
+        setTimeout(()=>advanceOnlineQuestion(),800);
+      }
+    }
+  },100);
+}
+
+async function submitOnlineAnswer(idx){
+  if(!gameState) return;
+  const role=isHost?'host':'join';
+  if(gameState.answers[role]!==null) return; // already answered
+  const q=gameState.questions[gameState.currentIdx];
+  const isCorrect=idx===q.a;
+  let pts=0;
+  if(isCorrect){
+    const elapsed=15-timeLeft;
+    pts=20+Math.max(0, Math.floor((15-elapsed)* (80/15)));
+    if(pts>100) pts=100;
+  }
+  const {doc, updateDoc, db} = {doc:window._fb.doc, updateDoc:window._fb.updateDoc, db:window._fb.db};
+  // update answer and score
+  const newScores={...gameState.scores};
+  newScores[role]+=pts;
+  const newAnswers={...gameState.answers};
+  newAnswers[role]=idx;
+  try{
+    await updateDoc(doc(db,'quiz_rooms',roomCode), {scores:newScores, answers:newAnswers});
+    // mark ui
+    const opts=document.querySelectorAll('.opt');
+    opts.forEach((b,i)=>{
+      b.classList.add('disabled');
+      if(i===q.a) b.classList.add('correct');
+      if(i===idx && idx!==q.a) b.classList.add('wrong');
+    });
+    document.getElementById('feedback').textContent=isCorrect?`CORRECT +${pts}`:'WRONG! Correct: '+q.opts[q.a];
+  }catch(e){ log(e.message); }
+}
+window.submitOnlineAnswer=submitOnlineAnswer;
+
+async function advanceOnlineQuestion(){
+  if(!isHost || !gameState) return;
+  const {doc, updateDoc, db} = {doc:window._fb.doc, updateDoc:window._fb.updateDoc, db:window._fb.db};
+  let nextIdx=gameState.currentIdx+1;
+  if(nextIdx>=10){
+    await updateDoc(doc(db,'quiz_rooms',roomCode), {status:'finished'});
+  } else {
+    await updateDoc(doc(db,'quiz_rooms',roomCode), {currentIdx:nextIdx, answers:{host:null,join:null}});
+  }
+}
+
+function leaveRoom(){
+  if(unsub) unsub();
+  roomCode=null;
+  isOnline=false; isHost=false; gameState=null;
+  setMode('local');
+  document.getElementById('roomLabel').classList.add('hidden');
+  document.getElementById('roomInfo').classList.add('hidden');
+  document.getElementById('gameCard').classList.add('hidden');
+  document.getElementById('setupCard').classList.remove('hidden');
+  lastRenderedIdx=-1;
+  log('Left room');
+}
+window.leaveRoom=leaveRoom;
+</script>
+</body>
+</html>

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LUDO - Black & Golden King</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+  }
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#ffb700;--bg:#0a0a0a;--panel:#111;--border:#FFD700;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--gold);font-family:Inter,Segoe UI,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px;background:#000;border-bottom:2px solid var(--gold);box-shadow:0 0 18px rgba(255,215,0,.4);position:sticky;top:0;z-index:20}
+.badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#1a1a1a,#000);border:1px solid var(--gold);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;box-shadow:0 0 10px rgba(255,215,0,.3)}
+.btn{cursor:pointer;background:linear-gradient(180deg,#FFD700,#ffb700);color:#000;border:1px solid #FFD700;border-radius:10px;padding:8px 14px;font-weight:800;letter-spacing:.3px;box-shadow:0 0 12px rgba(255,215,0,.5);transition:.15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 0 18px rgba(255,215,0,.8)}
+.btn.outline{background:#000;color:var(--gold);border:1px solid var(--gold)}
+.btn.small{padding:5px 9px;font-size:12px;border-radius:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stake-row .btn.active{outline:2px solid #fff;box-shadow:0 0 20px #FFD700, inset 0 0 8px rgba(0,0,0,.6)}
+.main{flex:1;display:grid;grid-template-columns:1fr 340px;gap:14px;padding:14px}
+@media(max-width:950px){.main{grid-template-columns:1fr}}
+.board-wrap{background:radial-gradient(120% 120% at 50% 0%,#1a1a0a,#000);border:2px solid var(--gold);border-radius:18px;padding:12px;box-shadow:0 0 30px rgba(255,215,0,.25), inset 0 0 20px rgba(255,215,0,.1);display:flex;flex-direction:column;align-items:center}
+#board{display:grid;grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(15,1fr);width:min(82vw,560px);height:min(82vw,560px);border:2px solid var(--gold);border-radius:12px;overflow:hidden;background:#060606;box-shadow:0 0 20px rgba(255,215,0,.35)}
+.cell{border:0.5px solid rgba(255,215,0,.12);display:flex;align-items:center;justify-content:center;position:relative;font-size:10px}
+.cell.path{background:linear-gradient(180deg,#0e0e0e,#0a0a0a)}
+.cell.safe{box-shadow:inset 0 0 0 2px #FFD700}
+.cell.home-gold{background:linear-gradient(180deg,#2e2400,#1a1500)}
+.cell.home-black{background:linear-gradient(180deg,#222,#000)}
+.cell.center{background:radial-gradient(circle,#FFD700 0%,#b89600 45%,#000 75%)}
+.cell.base-gold{background:linear-gradient(135deg,#1c1700,#000);border:2px solid #FFD700}
+.cell.base-black{background:linear-gradient(135deg,#151515,#000);border:2px solid #FFD700}
+.token{width:78%;height:78%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;cursor:pointer;border:2px solid #000;box-shadow:0 0 8px rgba(0,0,0,.8),0 0 10px currentColor;transition:.18s;position:relative;z-index:3}
+.token.gold{background:radial-gradient(circle at 30% 30%,#fff7a0,#FFD700 40%,#b89600);color:#000}
+.token.black{background:radial-gradient(circle at 30% 30%,#666,#000 60%);color:#FFD700;border-color:#FFD700}
+.token.selected{outline:3px solid #fff;transform:scale(1.18);box-shadow:0 0 18px #fff}
+.token.can{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.panel{background:linear-gradient(180deg,#151515,#070707);border:2px solid var(--gold);border-radius:16px;padding:14px;box-shadow:0 0 18px rgba(255,215,0,.2);display:flex;flex-direction:column;gap:12px;height:fit-content}
+h2{font-size:16px;letter-spacing:.4px;text-shadow:0 0 8px #FFD700}
+.divider{height:1px;background:linear-gradient(90deg,transparent,#FFD700,transparent)}
+.dice{width:76px;height:76px;border-radius:14px;background:linear-gradient(180deg,#FFD700,#ffb700);color:#000;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:900;cursor:pointer;border:2px solid #fff;box-shadow:0 0 20px rgba(255,215,0,.7)}
+.dice.rolling{animation:shake .4s infinite}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.turn{padding:8px 12px;border-radius:10px;border:1px solid var(--gold);text-align:center;font-weight:800}
+.turn.gold{background:linear-gradient(90deg,#2a2100,#000);color:#FFD700}
+.turn.black{background:linear-gradient(90deg,#222,#000);color:#FFD700}
+.log{max-height:140px;overflow:auto;background:#000;border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:8px;font-size:12px;line-height:1.4}
+.input{width:100%;background:#000;border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:9px 11px;outline:none}
+.input:focus{box-shadow:0 0 12px rgba(255,215,0,.6)}
+.small{font-size:12px;opacity:.9}
+.glow{filter:drop-shadow(0 0 6px var(--gold))}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="row">
+    <span class="badge glow">👑 LUDO KING • BLACK & GOLDEN</span>
+    <span id="authBadge" class="badge">🔒 Not logged</span>
+    <button id="loginBtn" class="btn small">Gmail Login</button>
+    <button id="logoutBtn" class="btn small outline" style="display:none">Logout</button>
+  </div>
+  <div class="row">
+    <span class="badge">💰 Credits: <b id="creditsVal">0</b></span>
+    <button class="btn small" onclick="buyCredits(1000)">Buy 1000</button>
+    <span class="badge">Pot: <b id="potVal">0</b> | Winner 90%</span>
+  </div>
+  <div class="row stake-row" id="stakeRow">
+    <span class="badge">Stake:</span>
+    <button class="btn small" data-stake="100">100</button>
+    <button class="btn small active" data-stake="500">500</button>
+    <button class="btn small" data-stake="1000">1000</button>
+    <button class="btn small" data-stake="5000">5000</button>
+  </div>
+  <div class="row">
+    <button class="btn small" id="localBtn">Local 2P</button>
+    <button class="btn small outline" id="createBtn">Create Room</button>
+    <input id="joinInput" class="input" style="width:130px" placeholder="LUDO-XXXX"/>
+    <button class="btn small" id="joinBtn">Join Room</button>
+    <span class="badge" id="roomBadge">No Room</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="board-wrap">
+    <div id="board"></div>
+    <div class="row" style="margin-top:10px;gap:14px">
+      <div id="dice" class="dice">🎲 1</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div id="turnInfo" class="turn gold">TURN: GOLDEN</div>
+        <div class="small" id="hint">Roll dice — need 6 to exit home. Click token to move.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>🎮 Game Controls</h2>
+    <div class="row">
+      <button class="btn" id="rollBtn">ROLL DICE</button>
+      <button class="btn outline small" id="resetBtn">Reset Board</button>
+    </div>
+    <div id="playersStat" class="small"></div>
+    <div class="divider"></div>
+    <h2>👥 Players</h2>
+    <div id="playerList" class="small"></div>
+    <div class="divider"></div>
+    <h2>📜 Log</h2>
+    <div id="log" class="log"></div>
+    <div class="small">Shared wallet: <code>ethan_credits</code> in localStorage. Online rooms sync to <b>ludo_rooms</b> Firestore.</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, serverTimestamp, updateDoc } from "firebase/firestore";
+
+// Firebase same project chessbyethan
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.appspot.com",
+  messagingSenderId: "1081234567890",
+  appId: "1:1081234567890:web:abcd1234efgh5678"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+// ---- wallet & stake ----
+let stake = 500;
+let credits = parseInt(localStorage.getItem('ethan_credits')||'2500',10);
+function saveCredits(){ localStorage.setItem('ethan_credits', credits.toString()); document.getElementById('creditsVal').textContent=credits; updatePot(); }
+function updatePot(){
+  const players = 2; // simplified pot for UI
+  const pot = stake*players;
+  document.getElementById('potVal').textContent=pot;
+}
+document.getElementById('creditsVal').textContent=credits;
+updatePot();
+document.querySelectorAll('[data-stake]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-stake]').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); stake=parseInt(b.dataset.stake,10); updatePot();
+  logMsg(`Stake set to ${stake}`);
+}));
+
+// Paystack LIVE
+const PAYSTACK_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df7f";
+window.buyCredits = function(amount){
+  const email = auth.currentUser?.email || "player@ludo.king";
+  if(!window.PaystackPop){ alert("Paystack not loaded"); return; }
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_KEY,
+    email: email,
+    amount: amount*100, // NGN kobo assuming 1 credit =1 NGN
+    currency: "NGN",
+    callback: function(res){
+      credits += amount;
+      saveCredits();
+      logMsg(`✅ Bought ${amount} credits! Ref ${res.reference}`);
+    },
+    onClose: function(){ logMsg("Paystack closed"); }
+  });
+  handler.openIframe();
+};
+
+// ---- auth ----
+const authBadge = document.getElementById('authBadge');
+document.getElementById('loginBtn').onclick=async()=>{
+  try{ await signInWithPopup(auth, provider);}catch(e){ alert(e.message); }
+};
+document.getElementById('logoutBtn').onclick=()=>signOut(auth);
+onAuthStateChanged(auth, user=>{
+  if(user){
+    authBadge.textContent = `✅ ${user.displayName||user.email}`;
+    document.getElementById('loginBtn').style.display='none';
+    document.getElementById('logoutBtn').style.display='block';
+  }else{
+    authBadge.textContent='🔒 Not logged';
+    document.getElementById('loginBtn').style.display='block';
+    document.getElementById('logoutBtn').style.display='none';
+  }
+});
+
+// ---- board definition ----
+const boardEl = document.getElementById('board');
+const PATH = [
+ [6,1],[6,2],[6,3],[6,4],[6,5],
+ [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],
+ [0,7],[0,8],
+ [1,8],[2,8],[3,8],[4,8],[5,8],
+ [6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+ [7,14],[8,14],
+ [8,13],[8,12],[8,11],[8,10],[8,9],
+ [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+ [14,7],[14,6],
+ [13,6],[12,6],[11,6],[10,6],[9,6],
+ [8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
+ [7,0],[6,0]
+];
+const HOME_GOLD = [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7]];
+const HOME_BLACK = [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8],[7,7]];
+const START_IDX = {gold:0, black:26};
+const ENTRY_IDX = {gold:51, black:25};
+const SAFE_IDXS = new Set([0,26,8,21,34,47]);
+
+// tokens state: -1 at base, 0-51 main, 100-105 home path (0-5), 106 finished
+const PLAYERS = [
+  {id:'gold', name:'GOLDEN', cls:'gold', color:'#FFD700'},
+  {id:'black', name:'BLACK', cls:'black', color:'#FFD700'}
+];
+
+let state = {
+  tokens: { gold:[ -1,-1,-1,-1 ], black:[ -1,-1,-1,-1 ] },
+  turn: 'gold',
+  dice: 1,
+  rolled: false,
+  moves: [],
+  mode: 'local',
+  room: null
+};
+
+function logMsg(m){
+  const el=document.getElementById('log');
+  el.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${m}</div>`+el.innerHTML;
+}
+
+function buildBoardDOM(){
+  boardEl.innerHTML='';
+  for(let r=0;r<15;r++){
+    for(let c=0;c<15;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.r=r; cell.dataset.c=c;
+      // base zones
+      const inGoldBase = r<=5 && c<=5;
+      const inBlackBase = r<=5 && c>=9;
+      const inRedBase = r>=9 && c<=5;
+      const inBlueBase = r>=9 && c>=9;
+      // path?
+      const pathIdx = PATH.findIndex(p=>p[0]==r && p[1]==c);
+      const isGoldHome = HOME_GOLD.slice(0,6).some(p=>p[0]==r&&p[1]==c);
+      const isBlackHome = HOME_BLACK.slice(0,6).some(p=>p[0]==r&&p[1]==c);
+      const isCenter = r==7 && c==7;
+      if(pathIdx!==-1) cell.classList.add('path');
+      if(SAFE_IDXS.has(pathIdx)) cell.classList.add('safe');
+      if(isGoldHome) cell.classList.add('home-gold');
+      if(isBlackHome) cell.classList.add('home-black');
+      if(isCenter) cell.classList.add('center');
+      if(inGoldBase) cell.classList.add('base-gold');
+      if(inBlackBase) cell.classList.add('base-black');
+      // label path idx for debug minimal
+      if(pathIdx!==-1) cell.title=`path ${pathIdx}${SAFE_IDXS.has(pathIdx)?' safe':''}`;
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function getCellEl(r,c){
+  return boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+}
+
+function renderTokens(){
+  // clear existing tokens
+  document.querySelectorAll('.token').forEach(e=>e.remove());
+  // bases for off-board tokens
+  const basePositions = {
+    gold: [[1,1],[1,4],[4,1],[4,4]],
+    black: [[1,10],[1,13],[4,10],[4,13]]
+  };
+  for(let p of PLAYERS){
+    for(let i=0;i<4;i++){
+      const v = state.tokens[p.id][i];
+      let r,c;
+      if(v==-1){
+        [r,c]=basePositions[p.id][i];
+      }else if(v>=0 && v<=51){
+        [r,c]=PATH[v];
+      }else if(v>=100 && v<=105){
+        const home = p.id=='gold'?HOME_GOLD:HOME_BLACK;
+        [r,c]=home[v-100];
+      }else if(v==106){
+        r=7;c=7;
+      }else continue;
+      const cell = getCellEl(r,c);
+      if(!cell) continue;
+      // stacking offset
+      const token=document.createElement('div');
+      token.className=`token ${p.cls}`;
+      token.textContent=(i+1);
+      token.dataset.player=p.id;
+      token.dataset.idx=i;
+      const count = cell.querySelectorAll('.token').length;
+      token.style.marginLeft = (count*4)+'px';
+      token.style.marginTop = (count*4)+'px';
+      // can move?
+      if(p.id==state.turn && state.rolled && state.moves.includes(i)) {
+        token.classList.add('can','selected');
+      }
+      token.onclick=(e)=>{ e.stopPropagation(); tryMove(p.id,i); };
+      cell.appendChild(token);
+    }
+  }
+  updateStats();
+}
+
+function updateStats(){
+  const goldDone = state.tokens.gold.filter(v=>v==106).length;
+  const blackDone = state.tokens.black.filter(v=>v==106).length;
+  document.getElementById('playersStat').innerHTML = `
+    <div class="row"><span class="badge" style="background:linear-gradient(180deg,#FFD700,#b89600);color:#000">GOLDEN: ${goldDone}/4 home</span>
+    <span class="badge">BLACK: ${blackDone}/4</span>
+    <span class="badge">Dice: ${state.dice}</span></div>`;
+  document.getElementById('turnInfo').textContent = `TURN: ${PLAYERS.find(p=>p.id==state.turn).name}`;
+  document.getElementById('turnInfo').className = `turn ${state.turn}`;
+  document.getElementById('playerList').innerHTML = PLAYERS.map(pl=>{
+    const toks = state.tokens[pl.id].map(v=>{
+      if(v==-1) return '🏠';
+      if(v==106) return '🏆';
+      if(v>=100) return `🏁${v-99}`;
+      return `•${v}`;
+    }).join(' ');
+    return `<div>${pl.name}: ${toks}</div>`;
+  }).join('');
+}
+
+function computeMoves(){
+  const cur = state.turn;
+  const dice = state.dice;
+  const moves=[];
+  const toks = state.tokens[cur];
+  for(let i=0;i<4;i++){
+    const pos = toks[i];
+    if(pos==-1){
+      if(dice==6) moves.push(i);
+    }else if(pos>=0 && pos<=51){
+      // if entry and can go home
+      const entry = ENTRY_IDX[cur];
+      if(pos==entry){
+        // entering home always allowed
+        moves.push(i);
+      }else{
+        // check if would exceed entry distance? allow overshoot wrap? In Ludo you must go exact? Simplified allow.
+        moves.push(i);
+      }
+    }else if(pos>=100 && pos<=105){
+      const need = 106 - pos;
+      if(dice<=need) moves.push(i);
+    }
+  }
+  state.moves=moves;
+}
+
+function tryMove(player, idx){
+  if(player!==state.turn){ logMsg('Not your turn'); return; }
+  if(!state.rolled){ logMsg('Roll dice first'); return; }
+  if(!state.moves.includes(idx)){ logMsg('Token cannot move'); return; }
+  let pos = state.tokens[player][idx];
+  const dice = state.dice;
+  if(pos==-1){
+    // exit
+    const start = START_IDX[player];
+    // capture check at start
+    captureAt(start, player);
+    state.tokens[player][idx]=start;
+    logMsg(`${player.toUpperCase()} token ${idx+1} entered board`);
+  }else if(pos>=0 && pos<=51){
+    if(pos==ENTRY_IDX[player]){
+      // go to home path start
+      state.tokens[player][idx]=100; // first home cell
+      logMsg(`${player.toUpperCase()} token ${idx+1} entered home stretch`);
+      // if dice >1 move extra into home
+      if(dice>1){
+        let remaining = dice-1;
+        let nh = 100+remaining-0;
+        if(nh>105){
+          if(nh==106){ state.tokens[player][idx]=106; logMsg(`🏆 ${player} token finished!`); }
+          else{ nh=105; state.tokens[player][idx]=nh; }
+        }else state.tokens[player][idx]=nh;
+      }
+    }else{
+      let np = (pos + dice) % 52;
+      // if passing entry? simplified: if we crossed entry from before entry to beyond, go to home? We'll check distance
+      // For gold: if moving from positions 0-51, to enter home we need to land exactly after passing entry? Implement: if player gold and pos is before entry in circular order and np passes beyond entry, move to home stretch
+      // Simplistic: if pos <= entry and np > entry and pos < entry+some? Actually circular.
+      const entry = ENTRY_IDX[player];
+      const crossed = (player=='gold')? (pos<entry && (pos+dice)>entry && (pos+dice)<=entry+6) || (pos>entry && (pos+dice)%52 < entry && (pos+dice)%52 <=5) : false;
+      // For simplicity, we detect if after move we would be at/after entry but we decide to enter home only if pos == entry earlier; so here just normal move
+      // But also need black entry
+      // For black entry 25: similar
+      const shouldEnterHome = checkEnterHome(pos,dice,player);
+      if(shouldEnterHome!==null){
+        state.tokens[player][idx]=shouldEnterHome;
+        logMsg(`${player} entering home`);
+      }else{
+        captureAt(np, player);
+        state.tokens[player][idx]=np;
+      }
+    }
+  }else if(pos>=100 && pos<=105){
+    let np = pos + dice;
+    if(np==106){ state.tokens[player][idx]=106; logMsg(`🏆 ${player.toUpperCase()} token ${idx+1} FINISHED!`); }
+    else if(np<=105){ state.tokens[player][idx]=np; }
+  }
+  renderTokens();
+  checkWin();
+  if(state.dice==6){
+    logMsg(`${player} rolled 6 — extra turn!`);
+    // stay same turn but need re-roll
+    state.rolled=false;
+    state.moves=[];
+    document.getElementById('hint').textContent='Rolled 6! Roll again.';
+  }else{
+    // switch turn
+    state.turn = state.turn=='gold'?'black':'gold';
+    state.rolled=false;
+    state.moves=[];
+    document.getElementById('hint').textContent='Roll dice for next player.';
+  }
+  updateStats();
+  // if auto flip for black player view
+  if(document.getElementById('flipChk')?.checked){ }
+  // online sync
+  if(state.room){ syncRoom(); }
+}
+
+function checkEnterHome(pos,dice,player){
+  const entry = ENTRY_IDX[player];
+  // if going beyond entry, convert excess to home
+  // compute steps from pos to entry
+  let stepsToEntry = (entry - pos + 52) % 52;
+  if(stepsToEntry>0 && stepsToEntry < dice){
+    let excess = dice - stepsToEntry -1;
+    if(excess<0) excess=0;
+    if(excess<=5) return 100+excess;
+    if(excess==6) return 106;
+    // overshoot not allowed -> stay? return null to block? simplified allow stay at entry
+    return 100+5; // max
+  }
+  return null;
+}
+
+function captureAt(pos, attacker){
+  if(SAFE_IDXS.has(pos)) return;
+  for(let p of PLAYERS){
+    if(p.id==attacker) continue;
+    for(let i=0;i<4;i++){
+      if(state.tokens[p.id][i]==pos){
+        state.tokens[p.id][i]=-1;
+        logMsg(`💥 ${attacker.toUpperCase()} captured ${p.id.toUpperCase()} token ${i+1}! Sent home.`);
+      }
+    }
+  }
+}
+
+function checkWin(){
+  for(let p of PLAYERS){
+    if(state.tokens[p.id].every(v=>v==106)){
+      logMsg(`🎉🎉 ${p.name} WINS! Pot ${stake*2} → ${(stake*2*0.9)} credits (90%)`);
+      // wallet update: winner gets 90% pot
+      if(p.id==state.turn || state.mode=='local'){
+        // local: give to winner turn player
+        credits += Math.floor(stake*2*0.9);
+        saveCredits();
+      }
+      alert(`${p.name} WINS!`);
+      // reset?
+    }
+  }
+}
+
+function rollDice(){
+  if(state.rolled){ logMsg('Already rolled, move a token'); return; }
+  const diceEl=document.getElementById('dice');
+  diceEl.classList.add('rolling');
+  let ctr=0; let iv=setInterval(()=>{
+    const r=Math.floor(Math.random()*6)+1;
+    diceEl.textContent=`🎲 ${r}`;
+    ctr++; if(ctr>10){ clearInterval(iv); diceEl.classList.remove('rolling');
+      const final=Math.floor(Math.random()*6)+1;
+      state.dice=final; state.rolled=true;
+      diceEl.textContent=`🎲 ${final}`;
+      computeMoves();
+      renderTokens();
+      if(state.moves.length==0){
+        logMsg(`${state.turn.toUpperCase()} has no moves, passing turn`);
+        setTimeout(()=>{
+          state.turn=state.turn=='gold'?'black':'gold';
+          state.rolled=false;
+          renderTokens();
+          if(state.room) syncRoom();
+        },900);
+      }else{
+        document.getElementById('hint').textContent=`Rolled ${final} — click a highlighted token`;
+      }
+      if(state.room) syncRoom();
+    }
+  },70);
+}
+
+// ---- room logic ----
+async function createRoom(){
+  const code = 'LUDO-'+Math.random().toString(36).substring(2,6).toUpperCase();
+  state.room=code;
+  document.getElementById('roomBadge').textContent=code;
+  if(!credits || credits<stake){ alert('Not enough credits'); return; }
+  credits-=stake; saveCredits();
+  const roomDoc = doc(db,'ludo_rooms',code);
+  await setDoc(roomDoc,{
+    code, stake, pot:stake*2,
+    players: [{uid:auth.currentUser?.uid||'local_gold', name:auth.currentUser?.displayName||'GOLDEN', id:'gold'}],
+    state: JSON.parse(JSON.stringify(state)),
+    createdAt: serverTimestamp(),
+    status:'waiting'
+  });
+  state.mode='online-host';
+  logMsg(`Created room ${code}`);
+  onSnapshot(roomDoc,(snap)=>{
+    if(!snap.exists()) return;
+    const data=snap.data();
+    if(data.state && data.state.room!=code && state.mode!='online-host'){
+      // sync?
+    }
+  });
+}
+async function joinRoom(){
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  if(!code) return alert('Enter code');
+  const roomDoc = doc(db,'ludo_rooms',code);
+  const snap = await getDoc(roomDoc);
+  if(!snap.exists()){ alert('Room not found'); return; }
+  const data=snap.data();
+  if(credits<data.stake){ alert('Not enough credits'); return; }
+  credits-=data.stake; saveCredits();
+  state.room=code; state.mode='online-join';
+  document.getElementById('roomBadge').textContent=code;
+  // join
+  await updateDoc(roomDoc,{ players: [...(data.players||[]), {uid:auth.currentUser?.uid||'local_black', name:auth.currentUser?.displayName||'BLACK', id:'black'}], status:'playing' });
+  logMsg(`Joined room ${code}`);
+  onSnapshot(roomDoc,(s)=>{
+    if(!s.exists()) return;
+    const d=s.data();
+    if(d.state){
+      // if host state newer, apply
+      if(JSON.stringify(d.state)!=JSON.stringify(state) && d.state.turn){
+        const wasRoom=state.room;
+        state = {...d.state, room:wasRoom, mode:state.mode};
+        renderTokens();
+      }
+    }
+  });
+}
+async function syncRoom(){
+  if(!state.room) return;
+  try{ await setDoc(doc(db,'ludo_rooms',state.room), {state: JSON.parse(JSON.stringify({...state, room:state.room}))},{merge:true}); }catch(e){ console.warn(e); }
+}
+
+document.getElementById('rollBtn').onclick=rollDice;
+document.getElementById('dice').onclick=rollDice;
+document.getElementById('resetBtn').onclick=()=>{
+  state.tokens={gold:[-1,-1,-1,-1], black:[-1,-1,-1,-1]};
+  state.turn='gold'; state.rolled=false; state.dice=1; state.moves=[];
+  renderTokens(); logMsg('Board reset');
+};
+document.getElementById('localBtn').onclick=()=>{
+  state.mode='local'; state.room=null; document.getElementById('roomBadge').textContent='Local 2P'; logMsg('Local 2P mode'); 
+};
+document.getElementById('createBtn').onclick=createRoom;
+document.getElementById('joinBtn').onclick=joinRoom;
+
+// init
+buildBoardDOM(); renderTokens(); logMsg('Ludo Black & Golden ready. Roll dice!');
+</script>
+</body>
+</html>

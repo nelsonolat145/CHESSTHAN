@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHESSBYETHAN - Black & Golden LIVE</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script type="importmap">
+{
+ "imports": {
+  "firebase/app": "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js",
+  "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js",
+  "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"
+ }
+}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080808;color:#fff;font-family:system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:10px}
+h1{color:#FFD700;font-size:22px;margin:10px;text-shadow:0 0 12px rgba(255,215,0,.6);letter-spacing:1px}
+.container{max-width:560px;width:100%}
+.card{background:#151515;border:1px solid #2a2a2a;border-radius:16px;padding:14px;margin-bottom:12px}
+.input{background:#222;border:1px solid #333;padding:12px;border-radius:10px;color:#fff;width:100%}
+.btn{background:#FFD700;color:#000;padding:12px;border:none;border-radius:10px;font-weight:800;width:100%;cursor:pointer;margin-top:6px}
+.btn-s{background:#222;color:#fff;border:1px solid #333;padding:10px;border-radius:10px;width:100%;margin-top:6px;cursor:pointer}
+.btn-black{background:#000;color:#FFD700;border:1px solid #FFD700;padding:10px;border-radius:10px;width:100%;margin-top:6px;cursor:pointer;font-weight:700}
+#board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1/1;border:3px solid #FFD700;border-radius:12px;overflow:hidden;width:100%;max-width:520px;margin:0 auto}
+.square{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:32px;position:relative;cursor:pointer;user-select:none}
+.square.light{background:#ffffff}.square.dark{background:#000000}
+.square.selected{outline:4px solid #FFD700;outline-offset:-4px;z-index:3}
+.square.last-move{background:rgba(255,215,0,0.35) !important}
+.piece{width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:2;font-size:34px;line-height:1}
+.piece.black-team{color:#000;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 4px #fff}
+.piece.golden-team{color:#FFD700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 12px rgba(255,215,0,.9);font-weight:900}
+.badge{background:#222;border:1px solid #333;padding:4px 10px;border-radius:20px;font-size:11px;display:inline-block;margin:2px}
+.badge.turn{background:#FFD700;color:#000;font-weight:800}
+.wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800}
+.stake-btn{padding:10px;border:1px solid #333;background:#1e1e1e;color:#fff;border-radius:10px;font-size:12px;cursor:pointer;flex:1;text-align:center}
+.stake-btn.active{background:#FFD700;color:#000;font-weight:800;border-color:#FFD700}
+.auth-bar{display:flex;align-items:center;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:12px;padding:10px;margin-bottom:12px}
+.moves{max-height:110px;overflow-y:auto;font-size:12px;background:#0f0f0f;border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+#debug{font-size:10px;color:#0f0;background:#000;padding:6px;border-radius:6px;margin-top:6px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>♟ CHESSBYETHAN - BLACK & GOLDEN ♟</h1>
+<div class="container">
+
+<div class="auth-bar" id="authBar">
+<div id="authInfo" style="font-size:12px">Checking Gmail...</div>
+<button class="btn" id="authBtn" style="width:auto;padding:8px 14px;margin:0">Sign in with Gmail</button>
+</div>
+
+<div class="card wallet">
+<div><div style="font-size:11px;opacity:.7">YOUR CREDITS</div><div style="font-size:22px">🪙 <span id="creditBal">500</span></div><div style="font-size:10px">₦<span id="nairaBal">50</span> • 5000 credit = ₦500</div></div>
+<div style="text-align:right"><button class="btn" style="padding:8px 14px;width:auto;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><div style="font-size:10px;margin-top:6px"><span style="color:#000;text-decoration:underline;cursor:pointer" onclick="withdraw()">Withdraw →</span></div></div>
+</div>
+
+<div class="card">
+<div style="font-size:12px;font-weight:700">💵 STAKE - Black vs Golden</div>
+<div style="display:flex;gap:6px;margin-top:8px">
+<button class="stake-btn active" onclick="setStake(100,this)">100<br><small>₦10</small></button>
+<button class="stake-btn" onclick="setStake(500,this)">500<br><small>₦50</small></button>
+<button class="stake-btn" onclick="setStake(1000,this)">1000<br><small>₦100</small></button>
+<button class="stake-btn" onclick="setStake(5000,this)">5000<br><small>₦500</small></button>
+</div>
+<div style="font-size:11px;margin-top:8px;background:#0f0f0f;padding:8px;border-radius:8px">Pot: 🪙 <b id="potDisplay">200</b> • Win: 🪙 <b id="winDisplay">180</b> <span style="opacity:.5">Winner 90%</span></div>
+</div>
+
+<div class="card">
+<div style="display:flex;gap:6px"><button class="btn" onclick="startAI()">Play vs AI</button><button class="btn-black" onclick="startLocal()">Local 2P</button></div>
+<div style="display:flex;gap:6px;margin-top:8px"><button class="btn-black" onclick="createRoom()">Create Room 💰</button><button class="btn-s" onclick="toggleJoin()">Join Room</button></div>
+<div id="joinBox" style="display:none;margin-top:10px"><input id="roomInput" class="input" placeholder="ETHAN-1234"><button class="btn" onclick="joinRoom()" style="margin-top:6px">Join Golden Room</button></div>
+</div>
+
+<div class="card">
+<div style="margin-bottom:8px"><span class="badge" id="roomBadge">No Room</span> <span class="badge" id="roleBadge">Role: -</span> <span class="badge turn" id="turnBadge">Turn: Golden</span> <span class="badge" id="stakeBadge">Stake: 100</span></div>
+<div id="board"></div>
+<div style="display:flex;gap:6px;margin-top:10px"><span class="badge" id="statusText">Golden to move - Click Golden piece</span><button class="btn-s" style="width:auto;padding:6px 12px" onclick="flipBoard()">Flip Board</button><button class="btn-s" style="width:auto;padding:6px 12px" onclick="resetGame()">Reset</button></div>
+<div class="moves" id="moveList">Game ready - Click a Golden piece to start</div>
+<div id="debug"></div>
+</div>
+
+<div class="card" style="font-size:10px;opacity:.6">Paystack live: pk_live_ec06b408bfb5c633263ee48346288df5df12df7f - Money goes to YOUR account. Firebase: chessbyethan project. Enable Google Auth in Firebase Console.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+
+let firebaseReady = false;
+try{
+ const firebaseConfig={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+ const app=initializeApp(firebaseConfig);
+ const auth=getAuth(app);
+ const db=getFirestore(app);
+ window._fb={auth,db,doc,setDoc,getDoc,onSnapshot,updateDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+ firebaseReady=true;
+ console.log("Firebase ready");
+}catch(e){console.error("Firebase init failed",e); document.getElementById('debug').innerText="Firebase failed: "+e.message+" - Offline mode still works";}
+
+if(firebaseReady){
+ const {auth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged,db,doc,setDoc,serverTimestamp}=window._fb;
+ const provider=new GoogleAuthProvider();
+ const authInfo=document.getElementById('authInfo');
+ const authBtn=document.getElementById('authBtn');
+ window._currentUser=null;
+ authBtn.onclick=async()=>{if(window._currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert("Login error: "+e.message)}};
+ onAuthStateChanged(auth,async(user)=>{
+   window._currentUser=user;
+   if(user){authInfo.innerHTML=`<img src="${user.photoURL}" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px"> ${user.displayName}`;authBtn.textContent='Sign Out'; try{await setDoc(doc(db,"chessbyethan_users",user.uid),{displayName:user.displayName,email:user.email,photo:user.photoURL,lastLogin:serverTimestamp()},{merge:true})}catch(e){}} else {authInfo.textContent='Not signed in - Gmail needed for online rooms';authBtn.textContent='Sign in with Gmail';}
+ });
+}
+</script>
+
+<script>
+// FIXED ENGINE - SIMPLE BUT WORKS
+const PAYSTACK_PUBLIC_KEY = 'pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
+let credits = parseInt(localStorage.getItem('ethan_credits')||'500');
+let stake = 100;
+let currentPot = 200;
+function saveCredits(){localStorage.setItem('ethan_credits',credits);updateWallet()}
+function updateWallet(){document.getElementById('creditBal').innerText=credits;document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0)}
+function setStake(s,el){if(credits < s){alert('Not enough credits! Have '+credits);return}stake=s;document.querySelectorAll('.stake-btn').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');document.getElementById('stakeBadge').innerText='Stake: '+s;document.getElementById('potDisplay').innerText=s*2;document.getElementById('winDisplay').innerText=Math.floor(s*2*0.9);currentPot=s*2}
+function buyCredits(){let naira=prompt('Buy Credits:\n500 = 5000 credits\n1000 = 10000 credits\n5000 = 50000 credits\n\nEnter: 500,1000,2500,5000');if(!naira)return;naira=parseInt(naira);if(![500,1000,2500,5000].includes(naira))return alert('Use 500,1000,2500,5000');let cred=naira*10;let handler=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email: (window._currentUser?window._currentUser.email:'player@chessbyethan.com'),amount:naira*100,currency:'NGN',ref:'ETHAN_'+Date.now(),callback:function(r){credits+=cred;saveCredits();alert('Success! +'+cred+' credits. Ref: '+r.reference+' - Money entered YOUR Paystack')}});handler.openIframe()}
+function withdraw(){let c=prompt('Withdraw\nYou have '+credits+' = ₦'+(credits*0.1)+'\nMin 5000\nEnter credits:');if(!c)return;c=parseInt(c);if(c<5000)return alert('Min 5000');if(c>credits)return alert('Not enough');let acc=prompt('Bank acc: Number, Bank, Name');if(!acc)return;credits-=c;saveCredits();alert('Withdrawal ₦'+(c*0.1)+' requested - Pay manually in 24h to '+acc)}
+
+class Board{
+ constructor(){
+  this.reset();
+ }
+ reset(){
+  this.pieces = {};
+  // Golden = white pieces at bottom (rank 1,2)
+  // Black = black at top (rank 7,8)
+  let order=['r','n','b','q','k','b','n','r'];
+  for(let i=0;i<8;i++){
+   this.pieces[''+ 'abcdefgh'[i]+'2']={t:'p',c:'w'};
+   this.pieces[''+ 'abcdefgh'[i]+'1']={t:order[i],c:'w'};
+   this.pieces[''+ 'abcdefgh'[i]+'7']={t:'p',c:'b'};
+   this.pieces[''+ 'abcdefgh'[i]+'8']={t:order[i],c:'b'};
+  }
+  this.turn='w';
+  this.history=[];
+  this.lastMove=null;
+ }
+ get(sq){return this.pieces[sq]||null}
+ isValid(from,to){
+  let p=this.get(from);
+  if(!p)return false;
+  if(p.c!==this.turn)return false;
+  let dest=this.get(to);
+  if(dest && dest.c===p.c)return false;
+  let fc='abcdefgh'.indexOf(from[0]), fr=parseInt(from[1]);
+  let tc='abcdefgh'.indexOf(to[0]), tr=parseInt(to[1]);
+  let dc=tc-fc, dr=tr-fr;
+  let adr=Math.abs(dr), adc=Math.abs(dc);
+  if(p.t==='p'){
+   let dir=p.c==='w'?1:-1;
+   if(fc===tc && !dest){
+    if(dr===dir)return true;
+    if(dr===2*dir && ((p.c==='w'&&fr===2)||(p.c==='b'&&fr===7)) && !this.get('abcdefgh'[fc]+(fr+dir))) return true;
+   }
+   if(adc===1 && dr===dir && dest)return true;
+   return false;
+  }
+  if(p.t==='n')return (adr===2&&adc===1)||(adr===1&&adc===2);
+  if(p.t==='b')return adr===adc && this.clear(from,to);
+  if(p.t==='r')return (dr===0||dc===0) && this.clear(from,to);
+  if(p.t==='q')return (adr===adc||dr===0||dc===0) && this.clear(from,to);
+  if(p.t==='k')return adr<=1&&adc<=1;
+  return false;
+ }
+ clear(from,to){
+  let fc='abcdefgh'.indexOf(from[0]), fr=parseInt(from[1]);
+  let tc='abcdefgh'.indexOf(to[0]), tr=parseInt(to[1]);
+  let stepC= tc===fc?0: tc>fc?1:-1;
+  let stepR= tr===fr?0: tr>fr?1:-1;
+  let c=fc+stepC, r=fr+stepR;
+  while(c!==tc || r!==tr){
+   let sq='abcdefgh'[c]+r;
+   if(this.get(sq))return false;
+   c+=stepC; r+=stepR;
+  }
+  return true;
+ }
+ move(from,to){
+  if(!this.isValid(from,to))return null;
+  let p=this.pieces[from];
+  delete this.pieces[from];
+  let captured=this.pieces[to];
+  this.pieces[to]=p;
+  if(p.t==='p' && (to[1]==='8'||to[1]==='1')) this.pieces[to]={t:'q',c:p.c};
+  let san=from+'-'+to+(captured?'x':'');
+  this.lastMove={from,to,san};
+  this.history.push(san);
+  this.turn=this.turn==='w'?'b':'w';
+  return this.lastMove;
+ }
+}
+
+let engine=new Board();
+let boardEl=document.getElementById('board');
+let selected=null;
+let flipped=false;
+let isAI=false;
+let myColor='w';
+let role='none';
+let roomCode=null;
+let unsub=null;
+
+const uni={'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙','bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'};
+
+function drawBoard(){
+ boardEl.innerHTML='';
+ let files = flipped ? 'hgfedcba'.split('') : 'abcdefgh'.split('');
+ let ranks = flipped ? '12345678'.split('') : '87654321'.split('');
+ for(let r=0;r<8;r++){
+  for(let c=0;c<8;c++){
+   let file=files[c];
+   let rank=ranks[r];
+   let sq=file+rank;
+   let div=document.createElement('div');
+   let isDark = ( ('abcdefgh'.indexOf(file)+parseInt(rank)) %2===0 );
+   div.className='square '+(isDark?'dark':'light');
+   div.dataset.sq=sq;
+   div.addEventListener('click',()=>clickSq(sq));
+   let p=engine.get(sq);
+   if(p){
+    let pieceDiv=document.createElement('div');
+    pieceDiv.className='piece '+(p.c==='w'?'golden-team':'black-team');
+    pieceDiv.textContent=uni[p.c+p.t.toUpperCase()];
+    div.appendChild(pieceDiv);
+   }
+   if(engine.lastMove && (sq===engine.lastMove.from || sq===engine.lastMove.to)) div.classList.add('last-move');
+   if(selected && sq===selected) div.classList.add('selected');
+   boardEl.appendChild(div);
+  }
+ }
+ document.getElementById('turnBadge').innerText='Turn: '+(engine.turn==='w'?'Golden':'Black');
+ document.getElementById('statusText').innerText=(engine.turn==='w'?'Golden':'Black')+' to move'+(selected?' - Selected '+selected+' → Click destination':' - Click a '+(engine.turn==='w'?'Golden':'Black')+' piece');
+ document.getElementById('moveList').innerHTML=engine.history.length?engine.history.map((m,i)=>`<span>${Math.floor(i/2)+1}. ${m}</span>`).join(' '):'Game ready - Golden starts';
+}
+
+function clickSq(sq){
+ if(role==='spectator')return;
+ if(isAI && engine.turn!==myColor)return;
+ let p=engine.get(sq);
+ if(selected){
+  // try move
+  let mv=engine.move(selected,sq);
+  if(mv){
+   selected=null;
+   drawBoard();
+   if(roomCode && window._fb) pushMove();
+   if(isAI && engine.turn!==myColor) setTimeout(aiMove,500);
+   checkWin();
+   return;
+  } else {
+   // select other own piece
+   if(p && p.c===engine.turn){selected=sq; drawBoard(); return;}
+   selected=null; drawBoard();
+  }
+ } else {
+  if(p && p.c===engine.turn){selected=sq; drawBoard();}
+ }
+}
+
+function checkWin(){
+ // no king?
+ let hasWK=Object.values(engine.pieces).some(x=>x.t==='k'&&x.c==='w');
+ let hasBK=Object.values(engine.pieces).some(x=>x.t==='k'&&x.c==='b');
+ if(!hasWK){alert('Black wins! Golden king captured'); if(myColor==='b'){credits+=Math.floor(currentPot*0.9);saveCredits();} return;}
+ if(!hasBK){alert('Golden wins! Black king captured'); if(myColor==='w'){credits+=Math.floor(currentPot*0.9);saveCredits();} return;}
+}
+
+function aiMove(){
+ let moves=[];
+ let allFrom=Object.keys(engine.pieces).filter(s=>engine.get(s).c===engine.turn);
+ for(let from of allFrom){
+  for(let file of 'abcdefgh'){ for(let rank=1;rank<=8;rank++){ let to=file+rank; if(engine.isValid(from,to)) moves.push({from,to}); } }
+ }
+ if(moves.length===0){alert('Checkmate! '+(engine.turn==='w'?'Black':'Golden')+' wins!'); return;}
+ let m=moves[Math.floor(Math.random()*moves.length)];
+ engine.move(m.from,m.to);
+ drawBoard();
+ checkWin();
+}
+
+function flipBoard(){flipped=!flipped; drawBoard();}
+function resetGame(){engine.reset();selected=null;isAI=false;role='none';roomCode=null;if(unsub){unsub();unsub=null;} document.getElementById('roomBadge').innerText='No Room';document.getElementById('roleBadge').innerText='Role: -';flipped=false;drawBoard();}
+function startAI(){engine.reset();isAI=true;role='player';myColor='w';flipped=false;document.getElementById('roomBadge').innerText='Mode: vs AI';document.getElementById('roleBadge').innerText='Role: Golden';selected=null;drawBoard();}
+function startLocal(){engine.reset();isAI=false;role='player';myColor='w';flipped=false;document.getElementById('roomBadge').innerText='Mode: Local 2P';document.getElementById('roleBadge').innerText='Role: Both';selected=null;drawBoard();}
+function toggleJoin(){let b=document.getElementById('joinBox');b.style.display=b.style.display==='none'?'block':'none';}
+async function createRoom(){
+ if(!window._fb){
+  // Offline fallback - create local room code
+  roomCode='ETHAN-'+Math.floor(1000+Math.random()*9000);
+  if(credits<stake) return alert('Need '+stake+' credits, you have '+credits);
+  credits-=stake; saveCredits();
+  document.getElementById('roomBadge').innerText='Room: '+roomCode+' (Local Test)';
+  document.getElementById('roleBadge').innerText='Host Golden - Stake '+stake+' - Share code: '+roomCode;
+  myColor='w'; role='host'; flipped=false;
+  alert('Offline Test Room '+roomCode+' created!\n\nFor REAL online rooms, you MUST:\n1. Enable Google Auth in Firebase\n2. Add nelsonolat145.github.io to authorized domains\n\nSee instructions below.');
+  return;
+ }
+ if(!window._currentUser){
+  let retry = confirm('Gmail not signed in yet.\n\nClick OK to try Sign in now, Cancel to create offline test room.');
+  if(retry){
+   try{
+    const {GoogleAuthProvider,signInWithPopup,auth}=window._fb;
+    const provider=new GoogleAuthProvider();
+    await signInWithPopup(auth,provider);
+    // wait a bit
+    await new Promise(r=>setTimeout(r,1000));
+    if(!window._currentUser) return alert('Login still not complete - check popup blocker or Firebase authorized domains. Add nelsonolat145.github.io');
+   }catch(e){
+    return alert('Gmail login failed: '+e.message+'\n\nFIX: Go to Firebase Console > Authentication > Sign-in method > Enable Google\nAnd add domain: nelsonolat145.github.io');
+   }
+  } else {
+   roomCode='ETHAN-'+Math.floor(1000+Math.random()*9000);
+   if(credits<stake) return alert('Need '+stake+' credits');
+   credits-=stake; saveCredits();
+   document.getElementById('roomBadge').innerText='Room: '+roomCode+' (Local Test)';
+   document.getElementById('roleBadge').innerText='Host Golden - Offline';
+   myColor='w'; role='host'; flipped=false;
+   alert('Offline room '+roomCode+' - For real online, fix Gmail login');
+   return;
+  }
+ }
+ if(credits<stake) return alert('Need '+stake+' credits, you have '+credits);
+ roomCode='ETHAN-'+Math.floor(1000+Math.random()*9000);
+ try{
+  const {doc,setDoc,serverTimestamp,db}=window._fb;
+  await setDoc(doc(db,"chessbyethan_rooms",roomCode),{pieces:engine.pieces,turn:engine.turn,history:engine.history,lastMove:engine.lastMove,host:window._currentUser.uid,guest:null,status:'waiting',createdAt:serverTimestamp(),roomCode,pot:currentPot,stake});
+  credits-=stake; saveCredits();
+  document.getElementById('roomBadge').innerText='Room: '+roomCode;
+  document.getElementById('roleBadge').innerText='Host Golden - Stake '+stake;
+  myColor='w'; role='host'; flipped=false;
+  listen(roomCode);
+  alert('Room '+roomCode+' created! Share code. You are Golden.');
+ }catch(e){alert('Firestore error - Enable Firestore in console: '+e.message)}
+}
+async function joinRoom(){
+ let code=document.getElementById('roomInput').value.trim().toUpperCase();
+ if(!code)return alert('Enter code');
+ if(!window._fb){
+  roomCode=code;
+  document.getElementById('roomBadge').innerText='Room: '+roomCode+' (Local Test)';
+  document.getElementById('roleBadge').innerText='Role: Black - Offline Test';
+  myColor='b'; role='host'; flipped=true; drawBoard(); alert('Joined offline test room '+code+' - Black auto-flipped'); return;
+ }
+ if(!window._currentUser) return alert('Sign in with Gmail first!\nIf login fails, enable Google in Firebase and add nelsonolat145.github.io to authorized domains');
+ if(credits<stake) return alert('Need '+stake+' credits');
+ roomCode=code;
+ try{
+  const {doc,getDoc,updateDoc,db}=window._fb;
+  let snap=await getDoc(doc(db,"chessbyethan_rooms",roomCode));
+  if(!snap.exists())return alert('Room not found!');
+  let d=snap.data();
+  engine.pieces=d.pieces; engine.turn=d.turn; engine.history=d.history||[]; engine.lastMove=d.lastMove; currentPot=d.pot||stake*2;
+  document.getElementById('potDisplay').innerText=currentPot;
+  if(!d.guest){
+   await updateDoc(doc(db,"chessbyethan_rooms",roomCode),{guest:window._currentUser.uid,status:'playing',pot:currentPot+stake});
+   credits-=stake; saveCredits();
+   myColor='b'; role='host'; flipped=true; // AUTO FLIP FOR BLACK
+   document.getElementById('roleBadge').innerText='Role: Black - Stake '+stake;
+   currentPot+=stake;
+  }else{
+   myColor='s'; role='spectator'; document.getElementById('roleBadge').innerText='Spectator'; flipped=false;
+  }
+  document.getElementById('roomBadge').innerText='Room: '+roomCode;
+  drawBoard();
+  listen(roomCode);
+ }catch(e){alert('Join error: '+e.message)}
+}
+function listen(code){
+ if(unsub) unsub();
+ if(!window._fb)return;
+ const {doc,onSnapshot,db}=window._fb;
+ unsub=onSnapshot(doc(db,"chessbyethan_rooms",code),(snap)=>{
+  if(!snap.exists())return;
+  let d=snap.data();
+  let changed=JSON.stringify(d.pieces)!==JSON.stringify(engine.pieces) || d.turn!==engine.turn;
+  if(changed){engine.pieces=d.pieces; engine.turn=d.turn; engine.history=d.history||[]; engine.lastMove=d.lastMove; currentPot=d.pot||currentPot; document.getElementById('potDisplay').innerText=currentPot; drawBoard();}
+ });
+}
+async function pushMove(){
+ if(!roomCode || !window._fb) return;
+ try{
+  const {doc,updateDoc,db}=window._fb;
+  await updateDoc(doc(db,"chessbyethan_rooms",roomCode),{pieces:engine.pieces,turn:engine.turn,history:engine.history,lastMove:engine.lastMove});
+ }catch(e){console.log(e)}
+}
+
+updateWallet(); setStake(100,document.querySelector('.stake-btn.active')); drawBoard();
+document.getElementById('debug').innerText='Engine loaded - '+Object.keys(engine.pieces).length+' pieces - Click Golden piece to play - Paystack live ready';
+</script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>PENALTY SHOOTOUT - Black & Gold</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+  }
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#d4af37;--gold-glow:0 0 12px #FFD700, 0 0 24px #FFD70066;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Arial}
+body{background:var(--black);color:var(--gold);overflow-x:hidden;min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:2px solid var(--gold);background:linear-gradient(180deg,#111,#000);box-shadow:var(--gold-glow);position:sticky;top:0;z-index:20}
+.btn{border:1.5px solid var(--gold);background:#000;color:var(--gold);padding:7px 12px;border-radius:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:.2s}
+.btn:hover{background:var(--gold);color:#000;box-shadow:var(--gold-glow)}
+.btn.active{background:var(--gold);color:#000;box-shadow:var(--gold-glow)}
+.btn:disabled{opacity:.35;pointer-events:none}
+.badge{border:1px solid var(--gold);padding:4px 8px;border-radius:20px;font-size:12px;background:#111}
+.sep{width:1px;height:24px;background:var(--gold);opacity:.5}
+.stake-row{display:flex;gap:6px;align-items:center}
+.wallet{font-weight:800}
+.main{flex:1;display:flex;flex-direction:column;align-items:center;padding:14px;gap:12px}
+.scoreboard{display:flex;gap:12px;align-items:stretch;width:100%;max-width:860px;justify-content:center;flex-wrap:wrap}
+.card{border:2px solid var(--gold);border-radius:14px;padding:10px 14px;background:linear-gradient(180deg,#101010,#000);min-width:150px;text-align:center;box-shadow:0 0 0 1px #FFD70033, var(--gold-glow)}
+.card .name{font-weight:900;font-size:15px;letter-spacing:.5px}
+.card .role{font-size:11px;opacity:.8;margin-top:2px}
+.card .score{font-size:28px;font-weight:900;margin-top:4px}
+.card.active{transform:scale(1.04);box-shadow:0 0 20px #FFD700, 0 0 40px #FFD70055;border-color:#fff}
+.center-info{min-width:120px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.pill{border:1px solid var(--gold);border-radius:10px;padding:6px 10px;text-align:center;font-weight:700;font-size:13px;background:#111}
+.pitch-wrap{position:relative;width:100%;max-width:680px;aspect-ratio:16/11;border:2.5px solid var(--gold);border-radius:18px;overflow:hidden;background:radial-gradient(120% 120% at 50% 0%,#222 0%,#000 70%);box-shadow:var(--gold-glow)}
+.goal-frame{position:absolute;left:8%;right:8%;top:8%;bottom:26%;border:6px solid #fff;border-bottom:none;border-radius:10px 10px 0 0;background:linear-gradient(180deg,#001a00,#003300);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;padding:6px;box-shadow:inset 0 0 30px #000}
+.zone{border:1.5px dashed #FFD70066;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:.15s;background:rgba(255,215,0,0.04)}
+.zone:hover{background:rgba(255,215,0,0.18);box-shadow:inset 0 0 12px #FFD70088}
+.zone.selected-striker{background:rgba(255,215,0,0.35);border-style:solid;border-color:var(--gold)}
+.zone.selected-keeper{outline:3px solid #fff}
+.zone.hit-save{animation:flash-red .5s}
+.zone.hit-goal{animation:flash-gold .6s}
+.zone-label{font-size:10px;opacity:.6;pointer-events:none}
+@keyframes flash-red{0%{background:#f44}100%{}}
+@keyframes flash-gold{0%{background:#FFD700}100%{}}
+.keeper{position:absolute;width:70px;height:90px;left:50%;top:52%;transform:translate(-50%,-50%);transition:all .55s cubic-bezier(.2,.8,.2,1);z-index:5;filter:drop-shadow(0 0 10px #FFD700)}
+.keeper div{width:100%;height:100%;background:linear-gradient(180deg,#111,#000);border:2px solid var(--gold);border-radius:14px 14px 8px 8px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.ball{position:absolute;width:26px;height:26px;border-radius:50%;left:50%;bottom:8%;transform:translate(-50%,0);background:radial-gradient(circle at 30% 30%,#fff,#ddd);border:2px solid var(--gold);box-shadow:0 0 12px #FFD700;z-index:6;transition:all .6s cubic-bezier(.2,.8,.3,1)}
+.ground{position:absolute;left:0;right:0;bottom:0;height:26%;background:repeating-linear-gradient(90deg,#0a2a0a 0 40px,#0d3311 40px 80px);border-top:2px solid var(--gold)}
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:10}
+.overlay.show{display:flex}
+.overlay-box{border:2px solid var(--gold);border-radius:16px;padding:18px 20px;background:#000;box-shadow:var(--gold-glow);text-align:center;min-width:260px}
+.log{width:100%;max-width:680px;border:1.5px solid #FFD70055;border-radius:12px;padding:8px 10px;max-height:120px;overflow:auto;font-size:12px;background:#0a0a0a}
+.input{border:1.5px solid var(--gold);background:#000;color:var(--gold);padding:7px 10px;border-radius:8px;outline:none}
+.input:focus{box-shadow:var(--gold-glow)}
+.footer-hint{font-size:11px;opacity:.6;text-align:center;max-width:660px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span style="font-weight:900;letter-spacing:1px">PENALTY • BLACK & GOLD</span>
+  <span class="sep"></span>
+  <button id="loginBtn" class="btn">Gmail Login</button>
+  <span id="userBadge" class="badge" style="display:none"></span>
+  <span class="sep"></span>
+  <span class="wallet">Credits: <span id="creditVal">0</span></span>
+  <button class="btn" onclick="buyCredits(500)">Buy 500</button>
+  <button class="btn" onclick="buyCredits(2000)">Buy 2000</button>
+  <span class="sep"></span>
+  <div class="stake-row">
+    Stake:
+    <button class="btn stakeBtn" data-s="100">100</button>
+    <button class="btn stakeBtn active" data-s="500">500</button>
+    <button class="btn stakeBtn" data-s="1000">1k</button>
+    <button class="btn stakeBtn" data-s="5000">5k</button>
+    <span class="badge">Pot: <span id="potVal">0</span></span>
+  </div>
+  <span class="sep"></span>
+  <button id="modeLocal" class="btn active">Local 2P</button>
+  <button id="modeCreate" class="btn">Create Room</button>
+  <button id="modeJoin" class="btn">Join Room</button>
+  <input id="roomInput" class="input" placeholder="PNLT-XXXX" style="width:110px;display:none"/>
+  <button id="joinBtn" class="btn" style="display:none">Join</button>
+  <span id="roomBadge" class="badge" style="display:none"></span>
+  <button id="leaveBtn" class="btn" style="display:none">Leave</button>
+</div>
+
+<div class="main">
+  <div class="scoreboard">
+    <div id="cardA" class="card active"><div class="name" id="nameA">Golden Striker</div><div class="role" id="roleA">STRIKER • Kick 1</div><div class="score" id="scoreA">0</div><div style="font-size:12px" id="recordA">○ ○ ○ ○ ○</div></div>
+    <div class="center-info">
+      <div class="pill" id="kickInfo">Kick 1/5 • GOLDEN to shoot</div>
+      <div class="pill" id="statusInfo">Striker pick zone</div>
+      <div class="pill" id="potInfo">Winner gets 90% pot</div>
+    </div>
+    <div id="cardB" class="card"><div class="name" id="nameB">Black Keeper</div><div class="role" id="roleB">KEEPER</div><div class="score" id="scoreB">0</div><div style="font-size:12px" id="recordB">○ ○ ○ ○ ○</div></div>
+  </div>
+
+  <div class="pitch-wrap" id="pitch">
+    <div class="goal-frame" id="goal">
+      <div class="zone" data-z="0"><span class="zone-label">TL</span></div>
+      <div class="zone" data-z="1"><span class="zone-label">TM</span></div>
+      <div class="zone" data-z="2"><span class="zone-label">TR</span></div>
+      <div class="zone" data-z="3"><span class="zone-label">ML</span></div>
+      <div class="zone" data-z="4"><span class="zone-label">C</span></div>
+      <div class="zone" data-z="5"><span class="zone-label">MR</span></div>
+      <div class="zone" data-z="6"><span class="zone-label">BL</span></div>
+      <div class="zone" data-z="7"><span class="zone-label">BM</span></div>
+      <div class="zone" data-z="8"><span class="zone-label">BR</span></div>
+    </div>
+    <div class="keeper" id="keeper"><div>🧤</div></div>
+    <div class="ball" id="ball"></div>
+    <div class="ground"></div>
+    <div class="overlay" id="resultOverlay"><div class="overlay-box"><div id="resultText" style="font-size:28px;font-weight:900">GOAL!</div><div id="resultSub" style="margin-top:6px;font-size:13px">Striker TL vs Keeper C</div><button class="btn" style="margin-top:12px" onclick="nextKick()">Next Kick →</button></div></div>
+    <div class="overlay" id="gameOverOverlay"><div class="overlay-box"><div id="finalText" style="font-size:26px;font-weight:900">WINNER</div><div id="finalSub" style="margin-top:6px;font-size:13px"></div><div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="btn" onclick="resetGame()">Play Again</button><button class="btn" id="claimBtn" onclick="claimWinnings()" style="display:none">Claim 90% Pot</button></div></div></div>
+  </div>
+
+  <div class="log" id="log"></div>
+  <div class="footer-hint">Striker clicks 1 of 9 zones to shoot. Keeper clicks 1 zone to dive. Same zone = SAVE, different = GOAL. Roles alternate each kick. First 5 kicks each, then sudden death. Black & Golden theme. Stake locked at game start — credits stored as ethan_credits.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, serverTimestamp } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.firebasestorage.app",
+  messagingSenderId: "1011438640674",
+  appId: "1:1011438640674:web:38d0a4d7f03d3b0f9d5e8d6"
+};
+// Fix appId placeholder if needed - use existing config shape
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+let currentUser = null;
+let wallet = parseInt(localStorage.getItem('ethan_credits')||'1000',10);
+let stake = 500;
+let mode = 'local'; // local | online
+let roomCode = null;
+let roomUnsub = null;
+let roomData = null;
+
+const creditVal = document.getElementById('creditVal');
+const potVal = document.getElementById('potVal');
+const logEl = document.getElementById('log');
+
+function saveWallet(){ localStorage.setItem('ethan_credits', wallet.toString()); creditVal.textContent = wallet; const players = mode==='local'?2:(roomData?.players?.length||1); potVal.textContent = stake*players; }
+function log(msg){ const d=document.createElement('div'); d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`; logEl.prepend(d); }
+
+saveWallet();
+
+// Top bar stake
+document.querySelectorAll('.stakeBtn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.stakeBtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  stake = parseInt(b.dataset.s,10);
+  saveWallet();
+  if(mode==='local') game.stake=stake;
+}));
+
+// Auth
+const loginBtn = document.getElementById('loginBtn');
+const userBadge = document.getElementById('userBadge');
+loginBtn.addEventListener('click', async()=>{
+  if(currentUser){ await signOut(auth); return; }
+  try{ await signInWithPopup(auth, provider); }catch(e){ alert(e.message); }
+});
+onAuthStateChanged(auth, (u)=>{
+  currentUser = u;
+  if(u){ loginBtn.textContent='Logout'; userBadge.style.display='inline'; userBadge.textContent = u.displayName||u.email; }
+  else{ loginBtn.textContent='Gmail Login'; userBadge.style.display='none'; }
+});
+
+// Paystack
+window.buyCredits = function(amount){
+  if(!window.PaystackPop){ alert('Paystack not loaded'); return; }
+  const key = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f"; // injected LIVE
+  const handler = PaystackPop.setup({
+    key: key,
+    email: currentUser?.email || "player@penalty.black",
+    amount: amount*100,
+    currency: "NGN",
+    callback: function(response){
+      wallet += amount;
+      saveWallet();
+      log(`Credits purchased +${amount} (${response.reference})`);
+    },
+    onClose: function(){ log('Paystack closed'); }
+  });
+  handler.openIframe();
+};
+
+// ---- Game Logic ----
+const zoneNames = ['TL','TM','TR','ML','C','MR','BL','BM','BR'];
+const zonePos = [
+  {x:22,y:30},{x:50,y:30},{x:78,y:30},
+  {x:22,y:52},{x:50,y:52},{x:78,y:52},
+  {x:22,y:78},{x:50,y:78},{x:78,y:78},
+];
+const keeperEl = document.getElementById('keeper');
+const ballEl = document.getElementById('ball');
+const goalEl = document.getElementById('goal');
+let game = {
+  kickIndex:0, // 0..
+  strikerChoice:null,
+  keeperChoice:null,
+  scores:[0,0],
+  records:[[],[]], // per player: array of 'G','S','-'
+  phase:'striker', // striker -> keeper -> reveal
+  over:false,
+  stake:stake,
+  players:2
+};
+
+function resetVisual(){
+  keeperEl.style.left='50%'; keeperEl.style.top='52%';
+  ballEl.style.left='50%'; ballEl.style.bottom='8%'; ballEl.style.top=''; ballEl.style.transform='translate(-50%,0)';
+  document.querySelectorAll('.zone').forEach(z=>{ z.classList.remove('selected-striker','selected-keeper','hit-save','hit-goal'); });
+}
+function updateUI(){
+  const totalKicks = Math.max(5, Math.ceil((game.kickIndex+1)/2));
+  const kickNum = Math.floor(game.kickIndex/2)+1;
+  const round = game.kickIndex <10 ? 5 : Math.floor(game.kickIndex/2)+1;
+  const isGoldenTurn = game.kickIndex%2===0; // P0 striker
+  const strikerIdx = isGoldenTurn?0:1;
+  const keeperIdx = 1-strikerIdx;
+
+  document.getElementById('scoreA').textContent = game.scores[0];
+  document.getElementById('scoreB').textContent = game.scores[1];
+  const toSymbol = (arr)=>{ const out=[]; for(let i=0;i<round;i++){ const v=arr[i]; out.push(v==='G'?'●':v==='S'?'✖':'○'); } return out.join(' '); };
+  document.getElementById('recordA').textContent = toSymbol(game.records[0]);
+  document.getElementById('recordB').textContent = toSymbol(game.records[1]);
+
+  // active card = striker
+  document.getElementById('cardA').classList.toggle('active', strikerIdx===0);
+  document.getElementById('cardB').classList.toggle('active', strikerIdx===1);
+  if(game.over){
+    document.getElementById('roleA').textContent = game.scores[0]>game.scores[1]?'WINNER':'';
+    document.getElementById('roleB').textContent = game.scores[1]>game.scores[0]?'WINNER':'';
+  } else {
+    document.getElementById('roleA').textContent = (strikerIdx===0?'STRIKER':'KEEPER') + (strikerIdx===0?` • Kick ${kickNum}`:'');
+    document.getElementById('roleB').textContent = (strikerIdx===1?'STRIKER':'KEEPER') + (strikerIdx===1?` • Kick ${kickNum}`:'');
+  }
+  // flip board for black player relevance: when black is striker, rotate goal visual 180? Requirement: auto flip for black player where relevant
+  // We flip the whole pitch vertically to feel reversed
+  const pitch = document.getElementById('pitch');
+  pitch.style.transform = (mode==='local' && strikerIdx===1) ? 'rotate(180deg)' : 'none';
+  document.getElementById('goal').style.transform = (mode==='local' && strikerIdx===1) ? 'rotate(180deg)' : 'none';
+  // keep keeper emoji upright when flipped
+  keeperEl.style.transform = (mode==='local' && strikerIdx===1) ? 'translate(-50%,-50%) rotate(180deg)' : 'translate(-50%,-50%)';
+
+  if(game.over){ document.getElementById('kickInfo').textContent = `FT ${game.scores[0]}-${game.scores[1]}`; }
+  else { document.getElementById('kickInfo').textContent = `Kick ${game.records[strikerIdx].length+1}/${game.kickIndex>=10? 'SD' : '5'} • ${(strikerIdx===0?'GOLDEN':'BLACK')} to shoot`; }
+
+  document.getElementById('statusInfo').textContent = game.over? 'Game Over' : game.phase==='striker' ? 'Striker: pick zone' : game.phase==='keeper' ? 'Keeper: pick dive' : 'Revealing...';
+}
+
+function checkWinner(){
+  const a=game.scores[0], b=game.scores[1];
+  const roundsA=game.records[0].length, roundsB=game.records[1].length;
+  if(roundsA>=5 && roundsB>=5){
+    if(roundsA===roundsB){
+      if(roundsA===5){
+        // early win math
+        const remA = 5-roundsA, remB = 5-roundsB; // zero after 5
+        if(a > b + roundsB -5 + (5-roundsA)){} // not needed
+      }
+      // after 5 each, if scores differ and equal kicks
+      if(roundsA>=5 && a!==b) return true;
+      // before 5, check impossible comeback
+      if(roundsA<5 || roundsB<5){
+        const remA = 5 - roundsA, remB = 5 - roundsB;
+        if(a > b + remB) return true;
+        if(b > a + remA) return true;
+      }
+    }
+  }
+  // after 5 each, sudden death after equal kicks
+  if(roundsA>=5 && roundsB>=5 && roundsA===roundsB && a!==b) return true;
+  // also if full 10 and still equal, continue until one leads after equal kicks
+  return false;
+}
+
+function doReveal(sZone,kZone){
+  const isGoal = sZone!==kZone;
+  const strikerIdx = game.kickIndex%2===0?0:1;
+  // animate keeper to kZone
+  const kp = zonePos[kZone];
+  keeperEl.style.left = kp.x+'%';
+  keeperEl.style.top = (8 + kp.y*0.66)+'%';
+  // animate ball to sZone
+  const sp = zonePos[sZone];
+  setTimeout(()=>{
+    ballEl.style.left = sp.x+'%';
+    ballEl.style.top = (8 + sp.y*0.66)+'%';
+    ballEl.style.bottom='auto';
+  },200);
+  
+  setTimeout(()=>{
+    const zones = document.querySelectorAll('.zone');
+    zones[sZone].classList.add(isGoal?'hit-goal':'hit-save');
+    // update records
+    game.records[strikerIdx].push(isGoal?'G':'S');
+    if(isGoal) game.scores[strikerIdx]++;
+
+    log(`${strikerIdx===0?'GOLDEN':'BLACK'} shoots ${zoneNames[sZone]} vs ${zoneNames[kZone]} => ${isGoal?'GOAL':'SAVE'}`);
+
+    document.getElementById('resultText').textContent = isGoal?'GOAL!':'SAVED!';
+    document.getElementById('resultText').style.color = isGoal?'#FFD700':'#fff';
+    document.getElementById('resultSub').textContent = `${strikerIdx===0?'GOLDEN':'BLACK'} ${zoneNames[sZone]} vs Keeper ${zoneNames[kZone]}`;
+    document.getElementById('resultOverlay').classList.add('show');
+
+    if(mode==='online' && roomCode && currentUser){
+      updateDoc(doc(db,'penalty_rooms',roomCode),{
+        scores:game.scores,
+        records:game.records,
+        lastResult:{s:sZone,k:kZone,goal:isGoal,kick:game.kickIndex}
+      });
+    }
+  },650);
+}
+
+function attemptPick(z){
+  if(game.over) return;
+  if(game.phase==='striker'){
+    game.strikerChoice = z;
+    document.querySelectorAll('.zone')[z].classList.add('selected-striker');
+    game.phase='keeper';
+    if(mode==='local'){
+      if(game.strikerChoice!==null) {} // hide? keep but allow keeper pick
+    }
+    // online: if current user is striker, write choice
+    if(mode==='online' && roomData){
+      const amStriker = (roomData.players[0]===currentUser.uid && game.kickIndex%2===0) || (roomData.players[1]===currentUser.uid && game.kickIndex%2===1);
+      if(amStriker){
+        updateDoc(doc(db,'penalty_rooms',roomCode),{strikerChoice:z, phase:'keeper'});
+      }
+    }
+    updateUI();
+  } else if(game.phase==='keeper'){
+    if(game.strikerChoice===null) return;
+    game.keeperChoice = z;
+    document.querySelectorAll('.zone')[z].classList.add('selected-keeper');
+    game.phase='reveal';
+    updateUI();
+    if(mode==='online' && roomData){
+      const amKeeper = !((roomData.players[0]===currentUser.uid && game.kickIndex%2===0) || (roomData.players[1]===currentUser.uid && game.kickIndex%2===1));
+      if(amKeeper){
+        updateDoc(doc(db,'penalty_rooms',roomCode),{keeperChoice:z, phase:'reveal'}).then(()=>{
+          // reveal triggered by listener
+        });
+        // actual reveal will be triggered by room listener after both choices present
+        return;
+      }
+    }
+    doReveal(game.strikerChoice, game.keeperChoice);
+  }
+}
+
+window.nextKick = function(){
+  document.getElementById('resultOverlay').classList.remove('show');
+  resetVisual();
+  game.kickIndex++;
+  game.strikerChoice=null; game.keeperChoice=null; game.phase='striker';
+  if(checkWinner() || (game.records[0].length>=5 && game.records[1].length>=5 && game.records[0].length===game.records[1].length && game.scores[0]!==game.scores[1])){
+    game.over=true;
+    endGame();
+  } else {
+    if(game.kickIndex>=20){ // failsafe
+      game.over=true; endGame();
+    }
+  }
+  if(mode==='online' && roomCode){
+    updateDoc(doc(db,'penalty_rooms',roomCode),{kickIndex:game.kickIndex, phase:'striker', strikerChoice:null, keeperChoice:null});
+  }
+  updateUI();
+};
+
+function endGame(){
+  const a=game.scores[0], b=game.scores[1];
+  let winnerIdx = a>b?0: b>a?1:-1;
+  document.getElementById('finalText').textContent = winnerIdx===-1?'DRAW!': (winnerIdx===0?'GOLDEN WINS!':'BLACK WINS!');
+  document.getElementById('finalSub').textContent = `Final ${a}-${b}`;
+  document.getElementById('gameOverOverlay').classList.add('show');
+  document.getElementById('claimBtn').style.display = mode==='local'||!currentUser? 'none':'inline-block';
+  log(`FT ${a}-${b} - ${(winnerIdx===0?'Golden':winnerIdx===1?'Black':'Draw')}`);
+  if(mode==='online' && roomData && winnerIdx!==-1){
+    const winnerUid = roomData.players[winnerIdx];
+    updateDoc(doc(db,'penalty_rooms',roomCode),{winner:winnerUid, status:'finished', finalScore:`${a}-${b}`});
+  }
+}
+
+window.resetGame = function(){
+  document.getElementById('gameOverOverlay').classList.remove('show');
+  document.getElementById('resultOverlay').classList.remove('show');
+  game = {kickIndex:0, strikerChoice:null, keeperChoice:null, scores:[0,0], records:[[],[]], phase:'striker', over:false, stake:stake, players:mode==='local'?2:2 };
+  resetVisual(); updateUI();
+  if(mode==='online' && roomCode && roomData?.players?.[0]===currentUser?.uid){
+    updateDoc(doc(db,'penalty_rooms',roomCode),{scores:[0,0], records:[[],[]], kickIndex:0, phase:'striker', strikerChoice:null, keeperChoice:null, winner:null, status:'playing'});
+  }
+};
+
+window.claimWinnings = function(){
+  if(!roomData||!roomData.stake) return;
+  const winner = roomData.winner;
+  if(winner && winner===currentUser.uid){
+    const winAmt = Math.floor(roomData.stake*2*0.9);
+    wallet += winAmt;
+    saveWallet();
+    log(`Claimed ${winAmt} credits! Pot was ${roomData.stake*2}`);
+    document.getElementById('claimBtn').style.display='none';
+  } else if(roomData.status==='finished' && !roomData.winner){
+    // draw refund
+    wallet += roomData.stake;
+    saveWallet();
+    log('Draw refunded stake');
+  }
+};
+
+// attach zones
+document.querySelectorAll('.zone').forEach(el=> el.addEventListener('click',()=> attemptPick(parseInt(el.dataset.z,10))));
+
+// ----- Online Rooms -----
+function genCode(){ const s='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<4;i++) c+=s[Math.floor(Math.random()*s.length)]; return 'PNLT-'+c; }
+
+document.getElementById('modeLocal').addEventListener('click',()=>{ switchMode('local'); });
+document.getElementById('modeCreate').addEventListener('click',()=>{ createRoom(); });
+document.getElementById('modeJoin').addEventListener('click',()=>{ switchMode('join'); });
+document.getElementById('joinBtn').addEventListener('click',()=> joinRoom(document.getElementById('roomInput').value.trim().toUpperCase()));
+document.getElementById('leaveBtn').addEventListener('click',()=> leaveRoom());
+
+function switchMode(m){
+  if(m==='local'){ mode='local'; document.getElementById('roomInput').style.display='none'; document.getElementById('joinBtn').style.display='none'; document.getElementById('modeLocal').classList.add('active'); document.getElementById('modeJoin').classList.remove('active'); document.getElementById('modeCreate').classList.remove('active'); document.getElementById('roomBadge').style.display='none'; document.getElementById('leaveBtn').style.display='none'; resetGame(); }
+  else if(m==='join'){ mode='online'; document.getElementById('roomInput').style.display='inline-block'; document.getElementById('joinBtn').style.display='inline-block'; document.getElementById('modeLocal').classList.remove('active'); document.getElementById('modeJoin').classList.add('active'); document.getElementById('modeCreate').classList.remove('active'); }
+}
+
+async function createRoom(){
+  if(!currentUser){ alert('Login with Gmail to create room'); return; }
+  if(wallet<stake){ alert('Not enough credits to stake'); return; }
+  const code = genCode();
+  const ref = doc(db,'penalty_rooms',code);
+  wallet -= stake; saveWallet();
+  await setDoc(ref,{
+    code, stake, status:'waiting',
+    players:[currentUser.uid],
+    playerNames:[currentUser.displayName||currentUser.email],
+    scores:[0,0], records:[[],[]], kickIndex:0, phase:'striker',
+    strikerChoice:null, keeperChoice:null,
+    createdAt:serverTimestamp()
+  });
+  roomCode=code; listenRoom(code);
+  mode='online';
+  document.getElementById('roomInput').style.display='none';
+  document.getElementById('joinBtn').style.display='none';
+  document.getElementById('modeLocal').classList.remove('active');
+  document.getElementById('modeCreate').classList.add('active');
+  document.getElementById('modeJoin').classList.remove('active');
+  log(`Room ${code} created. Stake ${stake}. Waiting for opponent...`);
+}
+
+async function joinRoom(code){
+  if(!currentUser){ alert('Login first'); return; }
+  if(!code.startsWith('PNLT-')){ alert('Code must be PNLT-XXXX'); return; }
+  const ref = doc(db,'penalty_rooms',code);
+  const snap = await getDoc(ref);
+  if(!snap.exists()){ alert('Room not found'); return; }
+  const data = snap.data();
+  if(data.players.length>=2 && !data.players.includes(currentUser.uid)){ alert('Room full'); return; }
+  if(wallet<data.stake){ alert('Not enough credits'); return; }
+  if(!data.players.includes(currentUser.uid)){
+    wallet -= data.stake; saveWallet();
+    await updateDoc(ref,{players:[...data.players, currentUser.uid], playerNames:[...data.playerNames, currentUser.displayName||currentUser.email], status:'playing'});
+  }
+  roomCode=code; listenRoom(code);
+  log(`Joined room ${code}`);
+}
+
+function listenRoom(code){
+  if(roomUnsub) roomUnsub();
+  document.getElementById('roomBadge').style.display='inline'; document.getElementById('roomBadge').textContent=code;
+  document.getElementById('leaveBtn').style.display='inline-block';
+  potVal.textContent = stake*2;
+  const ref = doc(db,'penalty_rooms',code);
+  roomUnsub = onSnapshot(ref,(snap)=>{
+    if(!snap.exists()){ log('Room deleted'); leaveRoom(); return; }
+    roomData = snap.data(); stake = roomData.stake||stake; saveWallet();
+    // sync game state if we're not host of action
+    if(typeof roomData.kickIndex==='number') game.kickIndex = roomData.kickIndex;
+    if(roomData.scores) game.scores = roomData.scores;
+    if(roomData.records) game.records = roomData.records;
+    if(roomData.phase) game.phase = roomData.phase;
+    if(roomData.winner){ game.over=true; endGame(); }
+    // handle reveal when both choices present
+    if(roomData.strikerChoice!==null && roomData.keeperChoice!==null && roomData.phase==='reveal' && !game.over){
+      // only animate once per kick
+      const last = roomData.lastResult;
+      if(!last || last.kick!==roomData.kickIndex){
+        doReveal(roomData.strikerChoice, roomData.keeperChoice);
+      }
+    }
+    // update names
+    if(roomData.playerNames){
+      document.getElementById('nameA').textContent = roomData.playerNames[0]?.slice(0,14)||'Golden';
+      document.getElementById('nameB').textContent = roomData.playerNames[1]?.slice(0,14)||'Waiting...';
+    }
+    updateUI();
+    // auto show phase hints
+    if(roomData.status==='waiting'){ document.getElementById('statusInfo').textContent='Waiting opponent...'; }
+  });
+}
+
+function leaveRoom(){
+  if(roomUnsub) roomUnsub(); roomUnsub=null;
+  roomCode=null; roomData=null;
+  document.getElementById('roomBadge').style.display='none';
+  document.getElementById('leaveBtn').style.display='none';
+  switchMode('local');
+  log('Left room');
+}
+
+resetVisual(); updateUI(); log('Game ready. Golden striker vs Black keeper. 5 kicks each.');
+</script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAUGHTS - Naija Checkers | Black & Golden</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+ "imports": {
+  "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
+  "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js",
+  "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"
+ }
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#ffec8b;--dark:#0a0a0a;--panel:#111;--line:rgba(255,215,0,0.35);--glow:0 0 18px rgba(255,215,0,0.55);}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Segoe UI,Arial,sans-serif}
+body{background:radial-gradient(1200px 600px at 50% -10%, #222 0%, #000 60%);color:var(--gold);min-height:100vh}
+button{cursor:pointer}
+#topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px solid var(--gold);background:rgba(0,0,0,0.9);box-shadow:var(--glow);position:sticky;top:0;z-index:10}
+.left,.right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.badge{border:1px solid var(--gold);padding:6px 10px;border-radius:999px;background:linear-gradient(180deg,#222,#000);color:var(--gold);font-weight:700;letter-spacing:.3px;box-shadow:0 0 10px rgba(255,215,0,.2) inset}
+.btn{border:1.5px solid var(--gold);background:linear-gradient(180deg,#1a1a1a,#000);color:var(--gold);padding:8px 14px;border-radius:10px;font-weight:800;transition:.15s;box-shadow:var(--glow)}
+.btn:hover{background:var(--gold);color:#000;transform:translateY(-1px)}
+.btn.active{background:var(--gold);color:#000}
+.btn.small{padding:5px 9px;font-size:12px}
+input{border:1.5px solid var(--gold);background:#000;color:var(--gold);padding:8px 10px;border-radius:10px;outline:none}
+input::placeholder{color:rgba(255,215,0,.5)}
+#main{display:grid;grid-template-columns:1fr 320px;gap:14px;padding:14px;max-width:1200px;margin:0 auto}
+@media(max-width:900px){#main{grid-template-columns:1fr}}
+#boardWrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+#board{width:min(92vw,560px);height:min(92vw,560px);display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);border:3px solid var(--gold);box-shadow:var(--glow),0 0 0 4px #000 inset;border-radius:14px;overflow:hidden;background:#000}
+.cell{position:relative;display:flex;align-items:center;justify-content:center;user-select:none}
+.cell.light{background:linear-gradient(180deg,#151515,#0a0a0a)}
+.cell.dark{background:radial-gradient(200px 200px at 50% 30%, #2a2a2a, #000)}
+.cell.selected{outline:3px solid var(--gold);outline-offset:-3px;box-shadow:0 0 20px rgba(255,215,0,.9) inset}
+.cell.possible::after{content:'';position:absolute;width:28%;height:28%;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold);opacity:.9}
+.cell.capture::after{content:'';position:absolute;width:82%;height:82%;border-radius:50%;border:3px dashed var(--gold);box-shadow:0 0 14px var(--gold)}
+.piece{width:78%;height:78%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;position:relative;z-index:1;transition:transform .12s}
+.piece.blackP{background:radial-gradient(80px 60px at 30% 25%, #4a4a4a, #000);border:2px solid #ffda44;color:#ffda44;box-shadow:0 0 10px rgba(255,215,0,.45),0 2px 0 #000}
+.piece.goldP{background:radial-gradient(80px 60px at 30% 25%, #ffe87a, #d4af00);border:2px solid #000;color:#000;box-shadow:0 0 14px rgba(255,215,0,.9),0 2px 0 #7a6400}
+.piece.king::before{content:'♔';position:absolute;top:-6px;font-size:14px;filter:drop-shadow(0 0 4px gold)}
+.piece.king.blackP::before{color:var(--gold)}
+.piece.king.goldP::before{color:#000}
+#side{border:2px solid var(--gold);border-radius:14px;background:linear-gradient(180deg,#161616,#070707);box-shadow:var(--glow);padding:12px;display:flex;flex-direction:column;gap:12px}
+h2{font-size:18px;letter-spacing:1px;text-shadow:0 0 8px var(--gold)}
+.hr{height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.stat{display:flex;justify-content:space-between;font-size:14px}
+.stat b{color:var(--gold2)}
+#moves{max-height:180px;overflow:auto;border:1px solid rgba(255,215,0,.25);border-radius:10px;padding:6px;font-size:13px;background:#000}
+.turnDot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;box-shadow:0 0 8px currentColor}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:50}
+#overlay.show{display:flex}
+.modal{border:2px solid var(--gold);background:linear-gradient(180deg,#1d1d1d,#000);border-radius:16px;padding:18px;min-width:300px;max-width:92vw;box-shadow:var(--glow)}
+#creditAnim{position:fixed;pointer-events:none;font-weight:900;color:var(--gold);text-shadow:0 0 10px var(--gold);z-index:100;animation:floatUp 1.1s ease forwards}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-80px)}}
+</style>
+</head>
+<body>
+<div id="topbar">
+<div class="left">
+<span class="badge" style="font-size:15px;letter-spacing:1.5px">♟️ DRAUGHTS • BLACK & GOLDEN</span>
+<button id="authBtn" class="btn small">Login Gmail</button>
+<span id="userBadge" class="badge" style="display:none"></span>
+</div>
+<div class="left">
+<span class="badge">💰 <span id="creditBal">0</span> CR</span>
+<button class="btn small" onclick="buyCredits(100)">Buy 100</button>
+<button class="btn small" onclick="buyCredits(500)">Buy 500</button>
+</div>
+<div class="right">
+<span class="badge">STAKE: <span id="stakeLab">100</span></span>
+<button class="btn small stakeBtn active" data-s="100">100</button>
+<button class="btn small stakeBtn" data-s="500">500</button>
+<button class="btn small stakeBtn" data-s="1000">1K</button>
+<button class="btn small stakeBtn" data-s="5000">5K</button>
+</div>
+<div class="right">
+<button id="modeLocal" class="btn small active">Local 2P</button>
+<button id="btnCreate" class="btn small">Create Room</button>
+<input id="joinInput" placeholder="DRFT-XXXX" style="width:110px">
+<button id="btnJoin" class="btn small">Join</button>
+<span id="roomBadge" class="badge" style="display:none"></span>
+</div>
+</div>
+
+<div id="main">
+<div id="boardWrap">
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<span class="badge"><span id="turnDot" class="turnDot" style="background:#FFD700"></span><span id="turnLab">Golden Turn</span></span>
+<span id="potBadge" class="badge" style="display:none"></span>
+<span id="flipBadge" class="badge">Flip: Auto</span>
+<button id="btnFlip" class="btn small">Flip Board</button>
+<button id="btnReset" class="btn small">Reset</button>
+</div>
+<div id="board"></div>
+<div style="display:flex;gap:8px">
+<span class="badge">Black Captured: <span id="capBlack">0</span></span>
+<span class="badge">Golden Captured: <span id="capGold">0</span></span>
+</div>
+</div>
+<div id="side">
+<h2>NAIJA CHECKERS</h2>
+<div class="stat"><span>Mode</span><b id="modeLab">Local 2P • Free</b></div>
+<div class="stat"><span>Forced Capture</span><b style="color:#0f0">ON</b></div>
+<div class="stat"><span>You</span><b id="youColor">Golden (bottom)</b></div>
+<div class="stat"><span>Pot / Winner Takes</span><b id="potInfo">—</b></div>
+<div class="hr"></div>
+<div class="stat"><span>Rules</span><b>12 pieces, dark only</b></div>
+<div style="font-size:12px;line-height:1.5;opacity:.9">
+• Dark squares only, diagonal forward (king any diagonal)<br>
+• Forced capture → must capture if possible<br>
+• Multi-capture chained<br>
+• Crown to king on opposite end<br>
+• Win when opponent has no moves
+</div>
+<div class="hr"></div>
+<div id="moves"></div>
+<button id="btnOfferDraw" class="btn small" style="width:100%">Resign / Leave Room</button>
+</div>
+</div>
+
+<div id="overlay"><div class="modal"><h2 id="modalTitle" style="margin-bottom:8px"></h2><div id="modalBody" style="font-size:14px;line-height:1.5"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn small" onclick="closeModal()">Close</button></div></div></div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+
+const firebaseConfig = {
+ apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+ authDomain: "chessbyethan.firebaseapp.com",
+ projectId: "chessbyethan",
+ storageBucket: "chessbyethan.appspot.com",
+ messagingSenderId: "1080246266142",
+ appId: "1:1080246266142:web:9d5f9c7c4dd64a1f0c4e0b"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+window._fb = {auth, db, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp};
+
+let currentUser = null;
+const authBtn = document.getElementById('authBtn');
+const userBadge = document.getElementById('userBadge');
+authBtn.onclick = async ()=>{
+ if(currentUser){ await signOut(auth); return; }
+ try{ await signInWithPopup(auth, provider); }catch(e){ alert("Login failed: "+e.message); }
+};
+onAuthStateChanged(auth, (u)=>{
+ currentUser = u;
+ if(u){
+  authBtn.textContent="Logout";
+  userBadge.style.display="inline-block";
+  userBadge.textContent = (u.displayName||u.email).slice(0,18);
+ } else {
+  authBtn.textContent="Login Gmail";
+  userBadge.style.display="none";
+ }
+});
+
+// Wallet
+const CRED_KEY="ethan_credits";
+window.getCredits = ()=> parseInt(localStorage.getItem(CRED_KEY)||"2500",10);
+window.setCredits = (v)=>{ localStorage.setItem(CRED_KEY, String(v)); document.getElementById('creditBal').textContent=v; };
+window.setCredits(window.getCredits());
+
+// Paystack
+const PAYSTACK_LIVE_KEY="pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
+window.buyCredits = (amount)=>{
+ const email = currentUser?.email || "player@naija.draughts";
+ const ref = "DRFT_"+Date.now()+"_"+Math.floor(Math.random()*9999);
+ const handler = PaystackPop.setup({
+  key: PAYSTACK_LIVE_KEY,
+  email: email,
+  amount: amount*100,
+  currency: "NGN",
+  ref: ref,
+  callback: function(res){
+   const add = parseInt(amount,10);
+   const bal = getCredits()+add;
+   setCredits(bal);
+   animCredit(`+${add} CR`);
+   showModal("Payment Success", `Added ${add} credits. Ref: ${res.reference}`);
+  },
+  onClose: function(){ console.log("Paystack closed"); }
+ });
+ handler.openIframe();
+};
+window.animCredit = (txt)=>{
+ const d=document.createElement('div'); d.id='creditAnim'; d.textContent=txt; d.style.left='50%'; d.style.top='60px'; document.body.appendChild(d); setTimeout(()=>d.remove(),1200);
+}
+window.showModal = (t,b)=>{ document.getElementById('modalTitle').textContent=t; document.getElementById('modalBody').innerHTML=b; document.getElementById('overlay').classList.add('show'); }
+window.closeModal=()=> document.getElementById('overlay').classList.remove('show');
+
+// Stake
+let stake=100;
+document.querySelectorAll('.stakeBtn').forEach(btn=>{btn.onclick=()=>{
+ document.querySelectorAll('.stakeBtn').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); stake=parseInt(btn.dataset.s,10);
+ document.getElementById('stakeLab').textContent=stake; updatePotInfo();
+}});
+function updatePotInfo(){
+ const mode = roomId ? "Online" : "Local";
+ const pot = roomId ? stake*2 : 0;
+ const win = Math.floor(pot*0.9);
+ document.getElementById('potInfo').textContent = roomId ? `Pot ${pot} / Win ${win}` : "Free Local";
+ document.getElementById('modeLab').textContent = mode + " • Stake "+stake;
+ document.getElementById('potBadge').style.display = roomId ? "inline-block":"none";
+ if(roomId) document.getElementById('potBadge').textContent = `POT ${pot} • WIN ${win}`;
+}
+
+// Game Logic
+const boardEl=document.getElementById('board');
+let board=[]; // 8x8, null or {c:'black'|'gold', k:bool}
+let turn='gold'; // gold bottom, black top. gold starts? In draughts black often first but we do gold.
+let selected=null; // {r,c}
+let legalMoves=[]; // [{r,c, captures:[{r,c}], from}]
+let mustCapture=false;
+let capBlack=0, capGold=0;
+let moveHistory=[];
+let flipped=false;
+let multiCaptureChain=null; // if in chain, {r,c}
+let roomId=null;
+let roomUnsub=null;
+let myColor=null; // 'black'/'gold' online
+let gameOver=false;
+
+function initBoard(){
+ board = Array.from({length:8},()=>Array(8).fill(null));
+ for(let r=0;r<3;r++){ for(let c=0;c<8;c++){ if((r+c)%2===1){ board[r][c]={c:'black',k:false}; } } }
+ for(let r=5;r<8;r++){ for(let c=0;c<8;c++){ if((r+c)%2===1){ board[r][c]={c:'gold',k:false}; } } }
+ turn='gold'; selected=null; legalMoves=[]; mustCapture=false; capBlack=0; capGold=0; moveHistory=[]; gameOver=false; multiCaptureChain=null;
+ render();
+ updateMustCapture();
+ document.getElementById('moves').innerHTML="";
+ document.getElementById('capBlack').textContent="0";
+ document.getElementById('capGold').textContent="0";
+}
+
+function cloneBoard(b){ return b.map(row=>row.map(x=> x? {...x}:null)); }
+
+function getMovesForPiece(r,c,bd=board, onlyCaptures=false, forced=false){
+ const piece = bd[r][c]; if(!piece) return [];
+ const dirs = [];
+ if(piece.k){ dirs.push([-1,-1],[-1,1],[1,-1],[1,1]); }
+ else if(piece.c==='gold'){ dirs.push([-1,-1],[-1,1]); } else { dirs.push([1,-1],[1,1]); }
+ let moves=[];
+ for(const [dr,dc] of dirs){
+  const nr=r+dr, nc=c+dc;
+  if(nr<0||nr>=8||nc<0||nc>=8) continue;
+  if(!bd[nr][nc] && !onlyCaptures){ moves.push({r:nr,c:nc,captures:[],from:{r,c}}); }
+  const jr=r+dr*2, jc=c+dc*2;
+  if(jr>=0&&jr<8&&jc>=0&&jc<8){
+   const mid = bd[nr][nc];
+   if(mid && mid.c!==piece.c && !bd[jr][jc]){
+    moves.push({r:jr,c:jc,captures:[{r:nr,c:nc}],from:{r,c}});
+   }
+  }
+ }
+ // multi chain extension if forced capture chain
+ if(forced){
+  // only capture moves
+  moves = moves.filter(m=>m.captures.length>0);
+ }
+ return moves;
+}
+
+function getAllMoves(color,bd=board){
+ let caps=[]; let normals=[];
+ for(let r=0;r<8;r++) for(let c=0;c<8;c++){
+  const p=bd[r][c]; if(!p||p.c!==color) continue;
+  if(multiCaptureChain && (r!==multiCaptureChain.r || c!==multiCaptureChain.c)) continue;
+  const moves=getMovesForPiece(r,c,bd);
+  for(const m of moves){
+   if(m.captures.length>0) caps.push(m); else normals.push(m);
+  }
+ }
+ if(caps.length>0) return caps;
+ if(multiCaptureChain) return []; // if chain but no caps, chain ends
+ return normals;
+}
+
+function updateMustCapture(){
+ const all=getAllMoves(turn);
+ mustCapture = all.some(m=>m.captures.length>0);
+}
+
+function hasAnyMove(color){
+ return getAllMoves(color).length>0;
+}
+
+function selectCell(r,c){
+ if(gameOver) return;
+ // online color check
+ if(roomId && myColor && myColor!==turn){ return; }
+ const p=board[r][c];
+ if(p && p.c===turn && (!multiCaptureChain || (multiCaptureChain.r===r && multiCaptureChain.c===c))){
+  selected={r,c};
+  const all=getAllMoves(turn);
+  const caps=all.filter(m=>m.captures.length>0);
+  const relevant = caps.length>0 ? caps.filter(m=>m.from.r===r && m.from.c===c) : all.filter(m=>m.from.r===r && m.from.c===c);
+  legalMoves=relevant;
+  render();
+  return;
+ }
+ if(selected){
+  const mv=legalMoves.find(m=>m.r===r && m.c===c);
+  if(mv){ doMove(mv); return; }
+  // deselect
+  selected=null; legalMoves=[]; render();
+ }
+}
+
+async function doMove(mv){
+ const from=mv.from;
+ const piece=board[from.r][from.c];
+ board[mv.r][mv.c]=piece;
+ board[from.r][from.c]=null;
+ for(const cap of mv.captures){
+  board[cap.r][cap.c]=null;
+  if(piece.c==='gold') capBlack++; else capGold++;
+ }
+ // crown
+ if(!piece.k){
+  if(piece.c==='gold' && mv.r===0) piece.k=true;
+  if(piece.c==='black' && mv.r===7) piece.k=true;
+ }
+ // check further captures from new pos if capture made
+ moveHistory.push(`${turn[0].toUpperCase()}: ${String.fromCharCode(97+from.c)}${8-from.r} → ${String.fromCharCode(97+mv.c)}${8-mv.r}${mv.captures.length?' x'+mv.captures.length:''}`);
+ document.getElementById('moves').innerHTML = moveHistory.slice(-40).reverse().join("<br>");
+ document.getElementById('capBlack').textContent=capBlack;
+ document.getElementById('capGold').textContent=capGold;
+
+ if(mv.captures.length>0){
+  const further = getMovesForPiece(mv.r,mv.c, board).filter(m=>m.captures.length>0);
+  if(further.length>0){
+   multiCaptureChain={r:mv.r,c:mv.c};
+   selected={r:mv.r,c:mv.c};
+   legalMoves=further;
+   turn=turn; // same turn continues
+   render(); updateMustCapture();
+   if(roomId) syncRoom();
+   return;
+  }
+ }
+ multiCaptureChain=null;
+ selected=null; legalMoves=[];
+ // switch turn
+ turn = turn==='gold' ? 'black' : 'gold';
+ updateMustCapture();
+ // win check
+ const noMoves = !hasAnyMove(turn);
+ if(noMoves){
+  gameOver=true;
+  const winner = turn==='gold' ? 'black' : 'gold';
+  const winTxt = winner==='gold' ? 'Golden' : 'Black';
+  showModal("Game Over", `${winTxt} wins! Opponent has no moves.<br>Press Reset to play again.`);
+  if(roomId){
+   // handle payout 90%
+   const pot = stake*2;
+   const winAmount = Math.floor(pot*0.9);
+   // winner logic credit if myColor == winner
+   if(myColor===winner){
+    const bal=getCredits()+winAmount;
+    setCredits(bal);
+    animCredit(`+${winAmount} CR WIN`);
+   }
+   syncRoom({winner});
+  }
+ } else {
+  render();
+ }
+ if(roomId) syncRoom();
+}
+
+function render(){
+ boardEl.innerHTML="";
+ const displayBoard = flipped ? [...board].reverse().map(r=>[...r].reverse()) : board;
+ // But clickable logic needs original coords. We'll generate 8x8 visual order.
+ for(let vr=0;vr<8;vr++){
+  for(let vc=0;vc<8;vc++){
+   const realR = flipped ? 7-vr : vr;
+   const realC = flipped ? 7-vc : vc;
+   const isDark = (realR+realC)%2===1;
+   const cell=document.createElement('div');
+   cell.className=`cell ${isDark?'dark':'light'}`;
+   if(selected && selected.r===realR && selected.c===realC) cell.classList.add('selected');
+   if(legalMoves.some(m=>m.r===realR && m.c===realC)){
+    const isCap = legalMoves.find(m=>m.r===realR && m.c===realC)?.captures.length>0;
+    cell.classList.add(isCap?'capture':'possible');
+   }
+   cell.onclick=()=>selectCell(realR,realC);
+   const p=board[realR][realC];
+   if(p){
+    const d=document.createElement('div');
+    d.className=`piece ${p.c==='black'?'blackP':'goldP'} ${p.k?'king':''}`;
+    d.textContent = p.k ? '' : (p.c==='black'?'●':'●');
+    cell.appendChild(d);
+   }
+   boardEl.appendChild(cell);
+  }
+ }
+ document.getElementById('turnLab').textContent = turn==='gold'?'Golden Turn':'Black Turn';
+ document.getElementById('turnDot').style.background = turn==='gold'?'#FFD700':'#444';
+ document.getElementById('turnDot').style.boxShadow='0 0 10px currentColor';
+ document.getElementById('youColor').textContent = roomId ? `${myColor==='gold'?'Golden':'Black'} (${myColor===turn?'your turn':'opp turn'})` : (flipped?'Black (bottom)':'Golden (bottom)');
+}
+
+document.getElementById('btnFlip').onclick=()=>{ flipped=!flipped; render(); };
+document.getElementById('btnReset').onclick=()=>{ initBoard(); if(roomId) syncRoom({reset:true}); };
+document.getElementById('btnOfferDraw').onclick=()=>{ if(roomId){ leaveRoom(); } else { initBoard(); } };
+
+// Online rooms
+function genCode(){ return "DRFT-"+Math.random().toString(36).substring(2,6).toUpperCase(); }
+
+async function createRoom(){
+ if(!currentUser){ alert("Login with Gmail first to create room"); return; }
+ const bal=getCredits();
+ if(bal<stake){ alert("Not enough credits. Buy more."); return; }
+ setCredits(bal-stake);
+ roomId=genCode();
+ myColor='gold';
+ flipped=false;
+ document.getElementById('roomBadge').style.display='inline-block';
+ document.getElementById('roomBadge').textContent=roomId+" • You: Golden (waiting)";
+ document.getElementById('modeLocal').classList.remove('active');
+ updatePotInfo();
+ const roomDoc = doc(db, "draughts_rooms", roomId);
+ await setDoc(roomDoc, {
+  code: roomId,
+  stake: stake,
+  status:"waiting",
+  goldUid: currentUser.uid,
+  goldEmail: currentUser.email,
+  blackUid:null,
+  createdAt: serverTimestamp(),
+  board: board,
+  turn: turn,
+  capBlack, capGold,
+  moveHistory,
+  winner:null,
+  pot: stake*2
+ });
+ listenRoom();
+ animCredit(`-${stake} CR STAKE`);
+}
+
+async function joinRoom(){
+ let code=document.getElementById('joinInput').value.trim().toUpperCase();
+ if(!code) { alert("Enter room code DRFT-XXXX"); return; }
+ if(!code.startsWith("DRFT-")) code="DRFT-"+code.replace("DRFT-","");
+ if(!currentUser){ alert("Login first"); return; }
+ const bal=getCredits();
+ if(bal<stake){ alert("Not enough credits"); return; }
+ const roomDoc=doc(db,"draughts_rooms",code);
+ const snap=await getDoc(roomDoc);
+ if(!snap.exists()){ alert("Room not found"); return; }
+ const data=snap.data();
+ if(data.status!=='waiting'){ alert("Room already started"); return; }
+ if(data.goldUid===currentUser.uid){ alert("You created this room"); return; }
+ setCredits(bal-stake);
+ roomId=code;
+ myColor='black';
+ flipped=true; // auto flip for black player
+ document.getElementById('roomBadge').style.display='inline-block';
+ document.getElementById('roomBadge').textContent=roomId+" • You: Black";
+ document.getElementById('modeLocal').classList.remove('active');
+ await updateDoc(roomDoc, {
+  blackUid: currentUser.uid,
+  blackEmail: currentUser.email,
+  status:"playing",
+  pot: (data.stake||stake)+stake
+ });
+ listenRoom();
+ animCredit(`-${stake} CR STAKE`);
+ updatePotInfo();
+}
+
+function listenRoom(){
+ if(roomUnsub) roomUnsub();
+ const roomDoc=doc(db,"draughts_rooms",roomId);
+ roomUnsub=onSnapshot(roomDoc, (snap)=>{
+  if(!snap.exists()){ showModal("Room Closed","Room deleted or ended"); leaveRoomLocal(); return; }
+  const d=snap.data();
+  if(d.board && d.goldUid && d.blackUid){
+   // if we are not the sender of last move, update board
+   // To avoid overriding local chaining, only update if not in multi capture chain by current turn player and move is opponent's?
+   const isMyTurn = (myColor===d.turn);
+   // If not our turn, always apply
+   // If chain ongoing and my turn, keep local
+   if(!(multiCaptureChain && isMyTurn)){
+    board = d.board.map(row=>row.map(c=>c?{...c}:null));
+    turn = d.turn;
+    capBlack=d.capBlack||0; capGold=d.capGold||0;
+    moveHistory=d.moveHistory||[];
+    document.getElementById('capBlack').textContent=capBlack;
+    document.getElementById('capGold').textContent=capGold;
+    document.getElementById('moves').innerHTML=moveHistory.slice(-40).reverse().join("<br>");
+    selected=null; legalMoves=[]; multiCaptureChain=null;
+    updateMustCapture();
+    render();
+    if(d.winner){ gameOver=true; showModal("Game Over", `${d.winner==='gold'?'Golden':'Black'} wins! Pot ${Math.floor(d.pot*0.9)} CR`); }
+   }
+  }
+  // status badge
+  if(d.status==='waiting') document.getElementById('roomBadge').textContent=roomId+" • Waiting opponent...";
+  else if(d.status==='playing') document.getElementById('roomBadge').textContent=roomId+" • Playing • Pot "+(d.pot||stake*2);
+ });
+}
+
+async function syncRoom(extra={}){
+ if(!roomId) return;
+ const roomDoc=doc(db,"draughts_rooms",roomId);
+ const payload={
+  board: board,
+  turn: turn,
+  capBlack, capGold,
+  moveHistory,
+  ...extra
+ };
+ if(extra.reset){
+  payload.board=board; payload.turn=turn; payload.capBlack=0; payload.capGold=0; payload.moveHistory=[]; payload.winner=null;
+ }
+ try{ await updateDoc(roomDoc, payload); }catch(e){ console.log(e); }
+}
+
+function leaveRoomLocal(){
+ if(roomUnsub) roomUnsub(); roomUnsub=null;
+ roomId=null; myColor=null; flipped=false;
+ document.getElementById('roomBadge').style.display='none';
+ document.getElementById('modeLocal').classList.add('active');
+ updatePotInfo(); render();
+}
+async function leaveRoom(){
+ if(roomId){
+  try{
+   const roomDoc=doc(db,"draughts_rooms",roomId);
+   await updateDoc(roomDoc,{status:"closed"});
+  }catch{}
+ }
+ leaveRoomLocal();
+}
+
+document.getElementById('btnCreate').onclick=createRoom;
+document.getElementById('btnJoin').onclick=joinRoom;
+document.getElementById('modeLocal').onclick=leaveRoomLocal;
+
+initBoard();
+updatePotInfo();
+</script>
+</body>
+</html>
