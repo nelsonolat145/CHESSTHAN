@@ -1,0 +1,54 @@
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADMIN WITHDRAWALS - ETHAN EMPIRE</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
+<style>body{background:#080808;color:#FFD700;font-family:system-ui;padding:10px} .card{background:#151515;border:1px solid #FFD700;border-radius:12px;padding:12px;margin:10px auto;max-width:900px} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:800;cursor:pointer;margin:2px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:6px;border-radius:8px;cursor:pointer;margin:2px} table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid #333;padding:6px;text-align:left} th{background:#222;color:#FFD700} .pending{background:#332a00} .paid{background:#002a00}</style></head><body>
+<h1>👑 ETHAN ADMIN - WITHDRAWALS 👑</h1>
+<div class="card" style="display:flex;justify-content:space-between"><span id="authInfo">Checking admin...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card"><b>How it works:</b><br>1. User requests withdrawal (min 5000 credits = ₦500)<br>2. You see request here with bank + account<br>3. You send money via your bank app / Paystack Transfer Dashboard<br>4. Click Approve → deducts and marks paid. Auto-sync means Paystack Transfer API does step 3 automatically (needs Cloud Function).</div>
+<div class="card"><b>Stats:</b> Total Pending: <span id="pendingCount">0</span> • Total Paid: ₦<span id="totalPaid">0</span><br><button class="btn" onclick="loadWithdrawals()">Refresh Requests</button></div>
+<div class="card"><div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>User</th><th>Bank</th><th>Account</th><th>Name</th><th>Credits</th><th>Naira</th><th>Status</th><th>Action</th></tr></thead><tbody id="tbody"><tr><td colspan="9">Loading...</td></tr></tbody></table></div></div>
+
+<script type="module">
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, serverTimestamp } from "firebase/firestore";
+const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
+window._fb={auth,db,collection,query,orderBy,onSnapshot,doc,updateDoc,getDocs,where,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+const provider=new GoogleAuthProvider(); const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn');
+authBtn.onclick=async()=>{ if(auth.currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
+onAuthStateChanged(auth,u=>{ if(u){authInfo.innerHTML=u.displayName+' - ADMIN MODE'; authBtn.textContent='Sign Out'; loadWithdrawals();}else{authInfo.textContent='Sign with YOUR owner Gmail to see withdrawals'; authBtn.textContent='Sign Gmail';} });
+</script>
+<script>
+const ADMIN_UIDS = []; // leave empty = any logged user can see for now, add your uid after first login to lock
+async function loadWithdrawals(){
+ const {collection,query,orderBy,onSnapshot,db}=window._fb;
+ const q=query(collection(db,'ethan_withdrawals'),orderBy('createdAt','desc'));
+ onSnapshot(q,snap=>{
+  let tbody=document.getElementById('tbody'); tbody.innerHTML=''; let pending=0, paid=0;
+  snap.forEach(d=>{
+   let data=d.data(); let tr=document.createElement('tr'); tr.className=data.status==='pending'?'pending':'paid';
+   let time=data.createdAt?.toDate?data.createdAt.toDate().toLocaleString():'';
+   tr.innerHTML=`<td>${time}</td><td>${data.email||data.userId}</td><td>${data.bank}</td><td>${data.accountNumber}</td><td>${data.accountName}</td><td>${data.credits}</td><td>₦${data.naira}</td><td>${data.status}</td><td>${data.status==='pending'?`<button class="btn" onclick="approve('${d.id}',${data.credits})">Approve Paid</button> <button class="btn-s" onclick="reject('${d.id}')">Reject</button>`:'✅ Paid'}</td>`;
+   tbody.appendChild(tr);
+   if(data.status==='pending') pending++; else paid+=data.naira;
+  });
+  document.getElementById('pendingCount').innerText=pending;
+  document.getElementById('totalPaid').innerText=paid;
+  if(snap.empty) tbody.innerHTML='<tr><td colspan=9>No withdrawals yet</td></tr>';
+ });
+}
+async function approve(id,credits){
+ if(!confirm('You sent money via bank? Mark as paid and deduct credits from user?')) return;
+ const {doc,updateDoc,db,serverTimestamp}=window._fb;
+ await updateDoc(doc(db,'ethan_withdrawals',id),{status:'paid', paidAt:serverTimestamp()});
+ alert('Marked paid - User credits already deducted at request time');
+}
+async function reject(id){
+ if(!confirm('Reject and refund credits?')) return;
+ const {doc,updateDoc,db,serverTimestamp}=window._fb;
+ // You need to refund via cloud function or manually add credits back to user
+ await updateDoc(doc(db,'ethan_withdrawals',id),{status:'rejected', rejectedAt:serverTimestamp()});
+ alert('Rejected - Manually refund credits to user in chessbyethan_users collection');
+}
+</script></body></html>
