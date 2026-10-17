@@ -170,6 +170,13 @@ function buyCredits(amount){
 }
 setStake(100); render(); updateWallet();
 window.setStake=setStake; window.startLocal=startLocal; window.playHole=playHole; window.createRoom=createRoom; window.joinRoom=joinRoom; window.buyCredits=buyCredits; window.toggleSound=toggleSound;
+function goHome(){
+  if(window.location.href.includes('github.io')){
+    window.location.href='/CHESSTHAN/';
+  } else {
+    window.location.href='index.html';
+  }
+}
 </script>
 </body>
 </html>
