@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCRABBLEBYETHAN - Black & Golden LIVE</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script type="importmap">
+{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080808;color:#fff;font-family:system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:8px}
+h1{color:#FFD700;font-size:20px;margin:8px;text-shadow:0 0 12px rgba(255,215,0,.6)}
+.container{max-width:620px;width:100%}
+.card{background:#151515;border:1px solid #2a2a2a;border-radius:16px;padding:12px;margin-bottom:10px}
+.btn{background:#FFD700;color:#000;padding:11px;border:none;border-radius:10px;font-weight:800;width:100%;cursor:pointer;margin-top:6px}
+.btn-s{background:#222;color:#fff;border:1px solid #333;padding:9px;border-radius:10px;width:100%;margin-top:6px;cursor:pointer}
+.btn-black{background:#000;color:#FFD700;border:1px solid #FFD700;padding:9px;border-radius:10px;width:100%;margin-top:6px;cursor:pointer;font-weight:700}
+.badge{background:#222;border:1px solid #333;padding:4px 10px;border-radius:20px;font-size:11px;display:inline-block;margin:2px}
+.badge.turn{background:#FFD700;color:#000;font-weight:800}
+.badge.score{background:#FFD700;color:#000;font-weight:800}
+.wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:12px;display:flex;justify-content:space-between;align-items:center;font-weight:800}
+#board{display:grid;grid-template-columns:repeat(15,1fr);aspect-ratio:1/1;border:3px solid #FFD700;border-radius:10px;overflow:hidden;width:100%;max-width:600px;margin:0 auto;background:#0a0a0a}
+.cell{aspect-ratio:1/1;border:1px solid #222;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;position:relative;cursor:pointer;font-weight:700;text-align:center;line-height:1}
+.cell.TW{background:#c0392b;color:#fff}.cell.DW{background:#e67e22;color:#fff}.cell.TL{background:#2980b9;color:#fff}.cell.DL{background:#3498db;color:#fff}.cell.CENTER{background:#FFD700;color:#000}.cell.normal{background:#111;color:#555}
+.tile{width:100%;height:100%;background:linear-gradient(135deg,#FFD700,#ffb700);color:#000;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:14px;box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.5);position:relative;z-index:2;border:1px solid #000}
+.tile.black{color:#000;text-shadow:none}
+.tile .pts{font-size:8px;position:absolute;bottom:1px;right:2px}
+.rack{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;background:#0f0f0f;border:1px solid #2a2a2a;border-radius:12px;padding:10px;min-height:60px}
+.rack-tile{width:44px;height:44px;background:linear-gradient(135deg,#FFD700,#ffb700);color:#000;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:18px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.5);position:relative;border:1px solid #000}
+.rack-tile.selected{outline:3px solid #fff;transform:translateY(-6px)}
+.auth-bar{display:flex;align-items:center;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:12px;padding:8px;margin-bottom:10px}
+.stake-btn{padding:8px;border:1px solid #333;background:#1e1e1e;color:#fff;border-radius:8px;font-size:11px;cursor:pointer;flex:1;text-align:center}
+.stake-btn.active{background:#FFD700;color:#000;font-weight:800;border-color:#FFD700}
+</style>
+</head>
+<body>
+<h1>🔤 SCRABBLEBYETHAN - BLACK & GOLDEN 🔤</h1>
+<div class="container">
+
+<div class="auth-bar" id="authBar">
+<div id="authInfo" style="font-size:11px">Checking Gmail...</div>
+<button class="btn" id="authBtn" style="width:auto;padding:6px 12px;margin:0;font-size:12px">Sign in Gmail</button>
+</div>
+
+<div class="card wallet">
+<div><div style="font-size:10px;opacity:.7">YOUR CREDITS</div><div style="font-size:20px">🪙 <span id="creditBal">500</span></div><div style="font-size:10px">₦<span id="nairaBal">50</span></div></div>
+<div><button class="btn" style="padding:6px 12px;width:auto;background:#000;color:#FFD700;border:1px solid #FFD700;font-size:12px" onclick="buyCredits()">Buy Credits</button></div>
+</div>
+
+<div class="card">
+<div style="font-size:11px;font-weight:700">💵 STAKE PER GAME</div>
+<div style="display:flex;gap:6px;margin-top:6px">
+<button class="stake-btn active" onclick="setStake(100,this)">100</button>
+<button class="stake-btn" onclick="setStake(500,this)">500</button>
+<button class="stake-btn" onclick="setStake(1000,this)">1000</button>
+<button class="stake-btn" onclick="setStake(5000,this)">5000</button>
+</div>
+<div style="font-size:10px;margin-top:6px;background:#0f0f0f;padding:6px;border-radius:6px">Pot: 🪙 <b id="potDisplay">200</b> • Win: <b id="winDisplay">180</b> • 90% winner</div>
+</div>
+
+<div class="card">
+<div style="display:flex;gap:6px"><button class="btn" onclick="createRoom()">Create Golden Room 💰</button><button class="btn-s" onclick="toggleJoin()">Join Room</button><button class="btn-s" onclick="startLocal()">Local 2P</button></div>
+<div id="joinBox" style="display:none;margin-top:8px"><input id="roomInput" style="background:#222;border:1px solid #333;padding:10px;border-radius:8px;color:#fff;width:100%" placeholder="ETHAN-1234"><button class="btn" onclick="joinRoom()" style="margin-top:6px">Join</button></div>
+<div style="font-size:9px;opacity:.5;margin-top:6px;text-align:center">TW=Triple Word, DW=Double Word, TL=Triple Letter, DL=Double Letter</div>
+</div>
+
+<div class="card">
+<div style="margin-bottom:6px"><span class="badge" id="roomBadge">No Room</span> <span class="badge" id="roleBadge">Role: -</span> <span class="badge turn" id="turnBadge">Turn: Golden</span> <span class="badge score" id="scoreBadge">You: 0 | Opp: 0</span></div>
+<div id="board"></div>
+<div style="display:flex;gap:6px;margin-top:8px">
+<button class="btn" onclick="playWord()" style="flex:2">Play Word ▶️</button>
+<button class="btn-s" onclick="shuffleRack()" style="flex:1">Shuffle</button>
+<button class="btn-s" onclick="passTurn()" style="flex:1">Pass</button>
+</div>
+<div class="rack" id="rack"></div>
+<div style="font-size:11px;margin-top:8px;background:#0f0f0f;padding:8px;border-radius:8px;min-height:40px" id="wordPreview">Select tiles from rack, then click board cells to place. Click Play Word to score.</div>
+<div style="font-size:10px;margin-top:6px;display:flex;gap:4px;flex-wrap:wrap" id="moves"></div>
+</div>
+
+<div class="card" style="font-size:9px;opacity:.6">
+Paystack Live: pk_live_ec06b408bfb5c633263ee48346288df5df12df7f • Same Firebase project chessbyethan, new collection scrabble_rooms • No need new project<br>
+<b>How to play:</b> Click tile in rack (golden), then click board cell to place. Place 1+ tiles in a row/col that connects to center or existing word. Click Play Word. Dictionary allows all words for now (can add strict list).
+</div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+try{
+ const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+ const app=initializeApp(cfg);
+ const auth=getAuth(app);
+ const db=getFirestore(app);
+ window._fb={auth,db,doc,setDoc,getDoc,onSnapshot,updateDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+ const provider=new GoogleAuthProvider();
+ const authInfo=document.getElementById('authInfo');
+ const authBtn=document.getElementById('authBtn');
+ window._currentUser=null;
+ authBtn.onclick=async()=>{if(window._currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)}};
+ onAuthStateChanged(auth,async(user)=>{window._currentUser=user;if(user){authInfo.innerHTML=`<img src="${user.photoURL}" style="width:20px;height:20px;border-radius:50%;vertical-align:middle"> ${user.displayName}`;authBtn.textContent='Sign Out';}else{authInfo.textContent='Not signed in - Gmail for online';authBtn.textContent='Sign in Gmail';}});
+}catch(e){console.log(e)}
+</script>
+
+<script>
+const PAYSTACK_PUBLIC_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
+let credits=parseInt(localStorage.getItem('scrabble_credits')||'500');
+let stake=100, currentPot=200;
+function saveCredits(){localStorage.setItem('scrabble_credits',credits);updateWallet()}
+function updateWallet(){document.getElementById('creditBal').innerText=credits;document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0)}
+function setStake(s,el){if(credits<s)return alert('Need '+s);stake=s;document.querySelectorAll('.stake-btn').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');document.getElementById('potDisplay').innerText=s*2;document.getElementById('winDisplay').innerText=Math.floor(s*2*0.9);currentPot=s*2}
+function buyCredits(){let n=prompt('Buy Credits: 500,1000,2500,5000 Naira');if(!n)return;n=parseInt(n);if(![500,1000,2500,5000].includes(n))return alert('Use 500,1000,2500,5000');let c=n*10;let h=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email:window._currentUser?window._currentUser.email:'player@scrabble.com',amount:n*100,currency:'NGN',ref:'SCRAB_'+Date.now(),callback:function(r){credits+=c;saveCredits();alert('Success +'+c+' credits Ref '+r.reference)}});h.openIframe()}
+
+// SCRABBLE LOGIC
+const BOARD_SIZE=15;
+const PREMIUM = {
+ '0,0':'TW','0,7':'TW','0,14':'TW','7,0':'TW','7,14':'TW','14,0':'TW','14,7':'TW','14,14':'TW',
+ '1,1':'DW','2,2':'DW','3,3':'DW','4,4':'DW','1,13':'DW','2,12':'DW','3,11':'DW','4,10':'DW','13,1':'DW','12,2':'DW','11,3':'DW','10,4':'DW','10,10':'DW','11,11':'DW','12,12':'DW','13,13':'DW','7,7':'CENTER',
+ '1,5':'TL','1,9':'TL','5,1':'TL','5,5':'TL','5,9':'TL','5,13':'TL','9,1':'TL','9,5':'TL','9,9':'TL','9,13':'TL','13,5':'TL','13,9':'TL',
+ '0,3':'DL','0,11':'DL','2,6':'DL','2,8':'DL','3,0':'DL','3,7':'DL','3,14':'DL','6,2':'DL','6,6':'DL','6,8':'DL','6,12':'DL','7,3':'DL','7,11':'DL','8,2':'DL','8,6':'DL','8,8':'DL','8,12':'DL','11,0':'DL','11,7':'DL','11,14':'DL','12,6':'DL','12,8':'DL','14,3':'DL','14,11':'DL'
+};
+const LETTER_SCORES={A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
+const BAG_DISTRIBUTION="AAAAAAAAABBCCDDDDEEEEEEEEEEEEFFGGGHHIIIIIIIIIJKLLLLMMNNNNNNOOOOOOOOPPQRRRRRRSSSSTTTTTTUUUUVVWWXYYZ".split('');
+
+let boardState={}; // key "r,c" -> {letter, score, isNew?, locked}
+let rack=[]; let selectedTileIdx=null; let placedThisTurn=[]; // list of {r,c,letter}
+let turn='w'; let myColor='w'; let role='none'; let roomCode=null; let unsub=null;
+let scores={w:0,b:0};
+let bag=[...BAG_DISTRIBUTION];
+
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr}
+
+function drawRack(){
+ rack=[]; bag=shuffle(bag);
+ for(let i=0;i<7;i++){ if(bag.length) rack.push(bag.pop()); }
+ renderRack();
+}
+function renderRack(){
+ let el=document.getElementById('rack'); el.innerHTML='';
+ rack.forEach((letter,idx)=>{
+  let div=document.createElement('div'); div.className='rack-tile'+(selectedTileIdx===idx?' selected':'');
+  div.innerHTML=letter+`<span style="font-size:9px;position:absolute;bottom:2px;right:3px">${LETTER_SCORES[letter]||0}</span>`;
+  div.onclick=()=>{selectedTileIdx=selectedTileIdx===idx?null:idx; renderRack(); updatePreview();};
+  el.appendChild(div);
+ });
+}
+
+function renderBoard(){
+ let b=document.getElementById('board'); b.innerHTML='';
+ for(let r=0;r<15;r++){
+  for(let c=0;c<15;c++){
+   let key=r+','+c;
+   let cell=document.createElement('div'); cell.className='cell '+(PREMIUM[key]||'normal');
+   if(PREMIUM[key]) cell.innerHTML=PREMIUM[key]==='CENTER'?'★':PREMIUM[key];
+   else cell.innerHTML='';
+   let placed=boardState[key];
+   if(placed){
+    cell.innerHTML='';
+    let tile=document.createElement('div'); tile.className='tile';
+    tile.innerHTML=placed.letter+`<span class="pts">${LETTER_SCORES[placed.letter]||0}</span>`;
+    if(placed.isNew) tile.style.outline='2px solid #fff';
+    cell.appendChild(tile);
+   }
+   cell.onclick=()=>onCellClick(r,c);
+   b.appendChild(cell);
+  }
+ }
+ document.getElementById('turnBadge').innerText='Turn: '+(turn==='w'?'Golden':'Black');
+ document.getElementById('scoreBadge').innerText=`Golden: ${scores.w} | Black: ${scores.b}`;
+}
+
+function onCellClick(r,c){
+ if(selectedTileIdx===null){ alert('Select a tile from rack first'); return; }
+ let key=r+','+c;
+ if(boardState[key]) return alert('Cell occupied');
+ let letter=rack[selectedTileIdx];
+ boardState[key]={letter, score:LETTER_SCORES[letter], isNew:true};
+ placedThisTurn.push({r,c,letter,key});
+ rack.splice(selectedTileIdx,1);
+ selectedTileIdx=null;
+ renderBoard(); renderRack(); updatePreview();
+}
+
+function updatePreview(){
+ let word=placedThisTurn.map(p=>p.letter).join('');
+ document.getElementById('wordPreview').innerText= placedThisTurn.length ? `Placing: ${word} (${placedThisTurn.length} tiles) - Click Play Word to score` : 'Select tiles from rack, then click board';
+}
+
+function playWord(){
+ if(placedThisTurn.length===0) return alert('Place tiles first');
+ // Check if first move must cover center
+ let isFirst = Object.keys(boardState).length===placedThisTurn.length;
+ if(isFirst){
+  let coversCenter = placedThisTurn.some(p=>p.r===7&&p.c===7);
+  if(!coversCenter) return alert('First word must cover center ★');
+ }
+ // Simple scoring: sum + premiums, allow any word
+ let score=0, wordMult=1;
+ placedThisTurn.forEach(p=>{
+  let key=p.r+','+p.c;
+  let prem=PREMIUM[key];
+  let ls=LETTER_SCORES[p.letter];
+  if(prem==='DL') ls*=2;
+  if(prem==='TL') ls*=3;
+  if(prem==='DW' || PREMIUM[key]==='CENTER') wordMult*=2;
+  if(prem==='TW') wordMult*=3;
+  score+=ls;
+ });
+ score*=wordMult;
+ if(placedThisTurn.length===7) score+=50; // bingo
+ // lock tiles
+ placedThisTurn.forEach(p=>{ let k=p.r+','+p.c; if(boardState[k]) boardState[k].isNew=false; });
+ scores[turn]+=score;
+ // refill rack
+ while(rack.length<7 && bag.length>0) rack.push(bag.pop());
+ placedThisTurn=[];
+ selectedTileIdx=null;
+ document.getElementById('moves').innerHTML+=`<span class="badge">${turn==='w'?'Golden':'Black'} +${score}</span> `;
+ turn=turn==='w'?'b':'w';
+ if(roomCode && window._fb) pushRoom();
+ renderBoard(); renderRack(); updatePreview();
+ // check win? bag empty and rack empty
+ if(bag.length===0 && rack.length===0){
+  alert('Game over! Golden '+scores.w+' - Black '+scores.b);
+  if(scores.w>scores.b && myColor==='w'){ credits+=Math.floor(currentPot*0.9); saveCredits(); }
+  if(scores.b>scores.w && myColor==='b'){ credits+=Math.floor(currentPot*0.9); saveCredits(); }
+ }
+}
+
+function shuffleRack(){ rack=shuffle(rack); renderRack(); }
+function passTurn(){ turn=turn==='w'?'b':'w'; placedThisTurn.forEach(p=>{ let k=p.key; delete boardState[k]; rack.push(p.letter); }); placedThisTurn=[]; renderBoard(); renderRack(); updatePreview(); if(roomCode&&window._fb) pushRoom(); }
+
+function startLocal(){
+ boardState={}; bag=[...BAG_DISTRIBUTION]; scores={w:0,b:0}; turn='w'; placedThisTurn=[]; myColor='w'; role='player'; roomCode=null;
+ drawRack(); renderBoard(); updatePreview();
+ document.getElementById('roomBadge').innerText='Local 2P';
+ document.getElementById('roleBadge').innerText='Both';
+ document.getElementById('moves').innerHTML='';
+}
+function toggleJoin(){let b=document.getElementById('joinBox');b.style.display=b.style.display==='none'?'block':'none';}
+async function createRoom(){
+ if(!window._fb || !window._currentUser) return alert('Sign in Gmail first for online - or use Local 2P');
+ if(credits<stake) return alert('Need '+stake);
+ roomCode='SCRAB-'+Math.floor(1000+Math.random()*9000);
+ try{
+  const {doc,setDoc,serverTimestamp,db}=window._fb;
+  await setDoc(doc(db,"scrabble_rooms",roomCode),{boardState,rack,bag,scores,turn,history:[],host:window._currentUser.uid,guest:null,status:'waiting',createdAt:serverTimestamp(),roomCode,pot:currentPot,stake});
+  credits-=stake; saveCredits();
+  document.getElementById('roomBadge').innerText='Room: '+roomCode;
+  document.getElementById('roleBadge').innerText='Host Golden';
+  myColor='w'; role='host';
+  listen(roomCode);
+  alert('Scrabble Room '+roomCode+' created! Share code. You are Golden.');
+ }catch(e){alert('Firestore error - Enable Firestore & add domain nelsonolat145.github.io: '+e.message)}
+}
+async function joinRoom(){
+ let code=document.getElementById('roomInput').value.trim().toUpperCase();
+ if(!code)return alert('Enter code');
+ if(!window._fb || !window._currentUser) return alert('Sign in Gmail first!');
+ roomCode=code;
+ try{
+  const {doc,getDoc,updateDoc,db}=window._fb;
+  let snap=await getDoc(doc(db,"scrabble_rooms",roomCode));
+  if(!snap.exists())return alert('Room not found!');
+  let d=snap.data();
+  boardState=d.boardState||{}; bag=d.bag||[]; rack=d.rack||[]; scores=d.scores||{w:0,b:0}; turn=d.turn||'w';
+  if(!d.guest){ await updateDoc(doc(db,"scrabble_rooms",roomCode),{guest:window._currentUser.uid,status:'playing',pot:(d.pot||stake)+stake}); credits-=stake; saveCredits(); myColor='b'; document.getElementById('roleBadge').innerText='Black'; } else { myColor='s'; role='spectator'; document.getElementById('roleBadge').innerText='Spectator'; }
+  document.getElementById('roomBadge').innerText='Room: '+roomCode;
+  renderBoard(); renderRack(); listen(roomCode);
+ }catch(e){alert('Join error: '+e.message)}
+}
+function listen(code){
+ if(unsub) unsub();
+ if(!window._fb) return;
+ const {doc,onSnapshot,db}=window._fb;
+ unsub=onSnapshot(doc(db,"scrabble_rooms",code),(snap)=>{
+  if(!snap.exists())return; let d=snap.data(); if(JSON.stringify(d.boardState)!==JSON.stringify(boardState)){ boardState=d.boardState; scores=d.scores; turn=d.turn; renderBoard(); }
+ });
+}
+async function pushRoom(){
+ if(!roomCode||!window._fb) return;
+ try{
+  const {doc,updateDoc,db}=window._fb;
+  await updateDoc(doc(db,"scrabble_rooms",roomCode),{boardState,scores,turn,bag});
+ }catch(e){}
+}
+
+updateWallet(); setStake(100,document.querySelector('.stake-btn.active'));
+startLocal();
+</script>
+</body>
+</html>
