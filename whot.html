@@ -1,661 +1,147 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WHOT - Nigerian Card Game</title>
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WHOT FIXED</title>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
-<script type="importmap">
-{
-  "imports": {
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
-  }
-}
-</script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<style>
-:root{--gold:#FFD700;--black:#000;--dark:#0a0a0a;--gold-glow:0 0 12px #FFD700,0 0 24px #b89600;}
-*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Segoe UI,Arial,sans-serif}
-body{background:radial-gradient(ellipse at 50% 0%,#1a1a00 0%,#000 70%);color:var(--gold);min-height:100vh;display:flex;flex-direction:column}
-.topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:2px solid var(--gold);box-shadow:var(--gold-glow);background:#000;position:sticky;top:0;z-index:50}
-.logo{font-weight:900;font-size:22px;letter-spacing:2px;text-shadow:var(--gold-glow)}
-.auth-bar{display:flex;gap:8px;align-items:center}
-button{cursor:pointer;border:1.5px solid var(--gold);background:#000;color:var(--gold);padding:7px 14px;border-radius:8px;font-weight:700;transition:.2s;box-shadow:0 0 6px #FFD70044}
-button:hover{background:var(--gold);color:#000;box-shadow:var(--gold-glow)}
-button.active{background:var(--gold);color:#000;box-shadow:var(--gold-glow)}
-.wallet{display:flex;gap:8px;align-items:center;border:1px solid var(--gold);padding:6px 10px;border-radius:8px;background:#111}
-.stake-row{display:flex;gap:6px;align-items:center}
-.room-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-input{background:#111;border:1px solid var(--gold);color:var(--gold);padding:6px 10px;border-radius:6px;outline:none}
-.game-wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:18px;gap:14px}
-.status{font-size:18px;font-weight:800;text-align:center;min-height:26px;text-shadow:var(--gold-glow)}
-.board{width:min(980px,96vw);background:linear-gradient(180deg,#0f0f0f,#000);border:2px solid var(--gold);border-radius:18px;box-shadow:var(--gold-glow);padding:18px;display:flex;flex-direction:column;gap:16px}
-.opponent{display:flex;flex-direction:column;align-items:center;gap:8px}
-.cards-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:90px}
-.card{width:72px;height:104px;border-radius:10px;border:2px solid var(--gold);background:radial-gradient(#222,#000);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 4px;position:relative;cursor:pointer;user-select:none;box-shadow:0 0 8px #FFD70055;transition:.15s}
-.card.back{background:repeating-linear-gradient(45deg,#1a1a00,#000 10px);border-color:var(--gold)}
-.card:hover{transform:translateY(-6px) scale(1.05);box-shadow:var(--gold-glow)}
-.card.selected{transform:translateY(-10px);box-shadow:0 0 18px var(--gold)}
-.card .num{font-size:18px;font-weight:900}
-.card .shape{font-size:28px}
-.card .small{font-size:10px;opacity:.8}
-.card.wh{border-color:#fff;background:linear-gradient(135deg,#222,#000);color:#FFD700}
-.center-zone{display:flex;justify-content:center;align-items:center;gap:32px;padding:12px;border:1.5px dashed #FFD70055;border-radius:14px;background:#080800}
-.pile{width:90px;height:130px;border-radius:12px;border:2px solid var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 10px #FFD70066;background:#111;position:relative}
-.pile .count{position:absolute;bottom:-10px;background:var(--gold);color:#000;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px}
-.market{transform:rotate(-3deg)}
-.discard{transform:rotate(2deg)}
-.discard .topcard{width:80px;height:114px;border-radius:8px;border:2px solid var(--gold);background:#000;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px;box-shadow:var(--gold-glow)}
-.shape-picker{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:100}
-.picker-box{background:#000;border:2px solid var(--gold);border-radius:16px;padding:20px;box-shadow:var(--gold-glow);display:flex;flex-direction:column;gap:12px;align-items:center}
-.shapes-grid{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-.shape-btn{width:80px;height:80px;border-radius:12px;border:2px solid var(--gold);background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:28px}
-.log{font-size:12px;opacity:.8;max-height:80px;overflow:auto;text-align:center}
-.player-zone{display:flex;flex-direction:column;align-items:center;gap:10px}
-.turn-ind{padding:4px 12px;border-radius:20px;border:1px solid var(--gold);font-size:12px;font-weight:800}
-.turn-ind.you{background:var(--gold);color:#000}
-@media(max-width:600px){.card{width:58px;height:84px}.card .shape{font-size:22px}.pile{width:72px;height:102px}}
-</style>
-</head>
-<body>
-<div class="topbar">
-  <div class="logo">WHOT ★ NIGERIA</div>
-  <div class="auth-bar">
-    <span id="userLabel">Guest</span>
-    <button id="loginBtn">Gmail Login</button>
-    <button id="logoutBtn" style="display:none">Logout</button>
-  </div>
-  <div class="wallet">
-    <span>₵ <b id="creditSpan">0</b></span>
-    <button onclick="buyCredits(100)">+100</button>
-    <button onclick="buyCredits(500)">+500</button>
-    <button onclick="buyCredits(1000)">+1k</button>
-  </div>
-  <div class="stake-row">
-    <span>Stake:</span>
-    <button class="stakeBtn active" data-stake="100">100</button>
-    <button class="stakeBtn" data-stake="500">500</button>
-    <button class="stakeBtn" data-stake="1000">1000</button>
-    <button class="stakeBtn" data-stake="5000">5000</button>
-    <span id="potSpan">Pot:0</span>
-  </div>
-  <div class="room-row">
-    <button id="localBtn" class="active">Local 2P</button>
-    <button id="createBtn">Create Room</button>
-    <input id="joinInput" placeholder="WHOT-XXXX" style="width:110px"/>
-    <button id="joinBtn">Join Room</button>
-    <span id="roomLabel"></span>
-  </div>
+<style>body{background:#080808;color:#FFD700;font-family:system-ui;text-align:center;padding:8px}.card{background:#151515;border:1px solid #FFD700;border-radius:14px;padding:10px;margin:8px auto;max-width:700px}.btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:800;width:100%;margin-top:6px;cursor:pointer}.btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;margin-top:6px;cursor:pointer}.cards{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:80px}.c{width:68px;height:96px;border-radius:10px;border:2px solid #FFD700;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;cursor:pointer}.c.selected{transform:translateY(-8px);box-shadow:0 0 15px #FFD700}.center{width:90px;height:120px;border:2px solid #fff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;background:#000}.badge{background:#222;border:1px solid #444;padding:4px 10px;border-radius:20px;font-size:11px;margin:2px;display:inline-block}.badge.turn{background:#FFD700;color:#000;font-weight:800}</style></head><body>
+<h1>🃏 WHOT - BLACK & GOLDEN (FIXED)</h1>
+<div class="card" style="display:flex;justify-content:space-between;align-items:center"><span id="authInfo">Checking Gmail...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card"><div>🪙 <b id="credits">500</b> credits • Pot <span id="pot">200</span></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn-s" onclick="setStake(100)">100</button><button class="btn-s" onclick="setStake(500)">500</button><button class="btn-s" onclick="setStake(1000)">1000</button><button class="btn-s" onclick="setStake(5000)">5000</button></div><button class="btn" onclick="startLocal()">Local 2P Start</button><div style="display:flex;gap:6px;margin-top:6px"><button class="btn-s" onclick="createRoom()">Create Room</button><button class="btn-s" onclick="joinRoom()">Join Room</button></div><input id="roomInput" placeholder="WHOT-XXXX" style="width:100%;padding:8px;margin-top:6px;background:#222;border:1px solid #444;color:#fff;border-radius:8px"></div>
+<div class="card"><span class="badge" id="roomBadge">No Room</span><span class="badge turn" id="turnBadge">Golden Turn</span><span class="badge" id="statusBadge">5 cards each</span>
+<div style="margin:10px 0"><div style="font-size:11px">OPPONENT (<span id="oppCount">5</span>)</div><div class="cards" id="oppHand"></div></div>
+<div style="display:flex;justify-content:center;gap:20px;align-items:center;margin:10px 0"><div class="center" style="background:#222" onclick="drawCard()"><small>MARKET<br><span id="marketCount">20</span></small></div><div class="center" id="centerCard"></div></div>
+<div style="margin:10px 0"><div style="font-size:11px">YOU</div><div class="cards" id="myHand"></div></div>
+<div style="font-size:11px" id="msg">Match shape or number. 2=Pick2, 5=Pick3, 8=Hold, 14=General Market, 20=Whot choose shape. Click card to play.</div>
 </div>
-
-<div class="game-wrap">
- <div class="status" id="statusTxt">Select mode to start. Click card to play matching shape or number. Specials: 1 Hold On,2 Pick2,5 Pick3,8 Suspension,14 General Market, Whot(20) Choose shape.</div>
- <div class="board" id="board">
-  <div class="opponent">
-    <div id="oppLabel">Opponent (5 cards)</div>
-    <div class="cards-row" id="oppHand"></div>
-    <div class="turn-ind" id="oppTurn">WAITING</div>
-  </div>
-  <div class="center-zone">
-    <div class="pile market" id="marketPile"><div>MARKET</div><div class="count" id="marketCount">30</div></div>
-    <div class="pile discard" id="discardPile"><div id="discardTop">CENTER</div></div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div id="currentShape">Shape: -</div>
-      <div id="pickAccum">Pick: 0</div>
-      <div id="infoTurn" style="font-weight:800"></div>
-      <button id="pickBtn">Pick Card</button>
-    </div>
-  </div>
-  <div class="player-zone">
-    <div class="turn-ind you" id="youTurn">YOUR TURN</div>
-    <div id="youLabel">You (5 cards)</div>
-    <div class="cards-row" id="youHand"></div>
-  </div>
-  <div class="log" id="log"></div>
- </div>
-</div>
-
-<div id="shapePicker" class="shape-picker" style="display:none">
-  <div class="picker-box">
-    <h3>Choose Shape for Whot</h3>
-    <div class="shapes-grid">
-      <div class="shape-btn" data-shape="circle">●<small>Circle</small></div>
-      <div class="shape-btn" data-shape="triangle">▲<small>Triangle</small></div>
-      <div class="shape-btn" data-shape="cross">✚<small>Cross</small></div>
-      <div class="shape-btn" data-shape="square">■<small>Square</small></div>
-      <div class="shape-btn" data-shape="star">★<small>Star</small></div>
-    </div>
-  </div>
-</div>
-
 <script type="module">
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
-  authDomain: "chessbyethan.firebaseapp.com",
-  projectId: "chessbyethan",
-  storageBucket: "chessbyethan.appspot.com",
-  messagingSenderId: "1098746094126",
-  appId: "1:1098746094126:web:2e2a3e3f3b3b3b3b3b3b3b"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const userLabel = document.getElementById('userLabel');
-loginBtn.onclick=()=>signInWithPopup(auth,provider);
-logoutBtn.onclick=()=>signOut(auth);
-onAuthStateChanged(auth,(u)=>{
-  if(u){userLabel.textContent=u.displayName||u.email;loginBtn.style.display='none';logoutBtn.style.display='inline-block';}
-  else{userLabel.textContent='Guest';loginBtn.style.display='inline-block';logoutBtn.style.display='none';}
-});
-
-window.db=db;window.doc=doc;window.setDoc=setDoc;window.getDoc=getDoc;window.onSnapshot=onSnapshot;window.updateDoc=updateDoc;
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+try{const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"}; const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app); window._fb={auth,db,doc,setDoc,getDoc,onSnapshot,updateDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}; const provider=new GoogleAuthProvider(); window._currentUser=null; const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn'); authBtn.onclick=async()=>{if(window._currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)}}; onAuthStateChanged(auth,u=>{window._currentUser=u; if(u){authInfo.innerHTML=u.displayName; authBtn.textContent='Sign Out'}else{authInfo.textContent='Not signed - Local works'; authBtn.textContent='Sign Gmail'}});}catch(e){console.log(e)}
 </script>
-
 <script>
 const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
-let credits=parseInt(localStorage.getItem('ethan_credits')||'2500');
-const creditSpan=document.getElementById('creditSpan');
-function renderCredits(){creditSpan.textContent=credits;localStorage.setItem('ethan_credits',credits);updatePot();}
-renderCredits();
-let currentStake=100;
-document.querySelectorAll('.stakeBtn').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.stakeBtn').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');currentStake=parseInt(b.dataset.stake);updatePot();
-});
-function updatePot(){document.getElementById('potSpan').textContent='Pot:'+ (currentStake*2) +' (90% win)';}
-updatePot();
-function buyCredits(amount){
-  const email = (typeof firebase!==undefined && document.getElementById('userLabel').textContent.includes('@')) ? document.getElementById('userLabel').textContent : prompt('Enter email for receipt','player@example.com')||'player@example.com';
-  if(!window.PaystackPop){alert('Paystack not loaded');return;}
-  let handler=PaystackPop.setup({
-    key:PAYSTACK_KEY,
-    email:email,
-    amount:amount*100,
-    currency:'NGN',
-    callback:function(res){
-      credits+=amount;
-      renderCredits();
-      addLog('Credits purchased +'+amount+' ref '+res.reference);
-      alert('Success! +'+amount+' credits');
-    },
-    onClose:function(){addLog('Paystack closed');}
-  });
-  handler.openIframe();
+let credits=parseInt(localStorage.getItem('ethan_credits')||'500'); let stake=100, pot=200, roomCode=null, unsub=null;
+let deck=[], my=[], opp=[], center=null, turn=1, pickAccum=0, shapes=['circle','triangle','cross','square','star']; // 1=Golden you, 0=Black opp
+function makeDeck(){let d=[]; let nums=[1,2,3,4,5,7,8,10,11,14]; shapes.forEach(s=>{nums.forEach(n=>{d.push({shape:s,number:n});});}); for(let i=0;i<5;i++) d.push({shape:'whot',number:20}); return shuffle(d);}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a;}
+function updateUI(){
+ document.getElementById('credits').innerText=credits; document.getElementById('pot').innerText=pot;
+ document.getElementById('oppCount').innerText=opp.length; document.getElementById('marketCount').innerText=deck.length;
+ document.getElementById('turnBadge').innerText=(turn===1?'Golden':'Black')+' Turn '+(pickAccum?`Pick ${pickAccum}`:'');
+ // center
+ let cc=document.getElementById('centerCard'); cc.innerHTML=`<div><div style="font-size:28px">${icon(center.shape)}</div><div>${center.number}${center.shape==='whot'?' WHOT':''}</div><div style="font-size:10px">${center.shape}</div></div>`;
+ // hands
+ let mh=document.getElementById('myHand'); mh.innerHTML=''; my.forEach((c,i)=>{let div=document.createElement('div'); div.className='c'; div.innerHTML=`<div>${icon(c.shape)}</div><div>${c.number}</div><small>${c.shape}</small>`; div.onclick=()=>playCard(i); mh.appendChild(div);});
+ let oh=document.getElementById('oppHand'); oh.innerHTML=''; opp.forEach(_=>{let div=document.createElement('div'); div.className='c'; div.innerHTML='🂠'; oh.appendChild(div);});
+ if(my.length===0){ alert('YOU WIN! Golden wins! Pot '+(pot*0.9)); credits+=Math.floor(pot*0.9); localStorage.setItem('ethan_credits',credits); updateUI(); }
+ if(opp.length===0){ alert('BLACK WINS! Opponent wins'); }
 }
-window.buyCredits=buyCredits;
-
-// WHOT GAME LOGIC
-const SHAPES={
-  circle:{icon:'●',color:'#FFD700'},
-  triangle:{icon:'▲',color:'#FFD700'},
-  cross:{icon:'✚',color:'#FFD700'},
-  square:{icon:'■',color:'#FFD700'},
-  star:{icon:'★',color:'#FFD700'},
-  whot:{icon:'Whot',color:'#fff'}
-};
-
-let gameState=null;
-let mode='local'; // local, online
-let roomCode=null;
-let roomUnsub=null;
-let playerIndex=0; // 0 you, 1 opp (for online)
-let isOnline=false;
-let onlineTurn=false;
-
-function createDeck(){
-  let deck=[];
-  function add(shape,numbers){
-    numbers.forEach(n=>deck.push({id:shape+'-'+n+'-'+Math.random(),shape,number:n}));
-  }
-  const all1to14=Array.from({length:14},(_,i)=>i+1);
-  add('circle',all1to14);
-  add('triangle',all1to14);
-  add('square',[1,2,3,4,5,7,8,10,11,12,13,14]);
-  add('cross',[1,2,3,5,7,8,10,11,14]);
-  add('star',[1,2,3,4,5,7,8]);
-  for(let i=0;i<5;i++) deck.push({id:'whot-'+i+'-'+Math.random(),shape:'whot',number:20});
-  // shuffle
-  for(let i=deck.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
-  return deck;
+function icon(s){if(s==='circle')return '●'; if(s==='triangle')return '▲'; if(s==='cross')return '✚'; if(s==='square')return '■'; if(s==='star')return '★'; if(s==='whot')return 'W'; return s;}
+function setStake(s){stake=s; pot=s*2; updateUI();}
+function startLocal(){
+ deck=makeDeck(); my=[]; opp=[]; for(let i=0;i<5;i++){my.push(deck.pop()); opp.push(deck.pop());} center=deck.pop(); while([2,5,8,14].includes(center.number)){deck.unshift(center); center=deck.pop();} turn=1; pickAccum=0; document.getElementById('roomBadge').innerText='Local 2P'; document.getElementById('msg').innerText='Local start - Match shape or number. Golden starts'; updateUI();
 }
-
-function newGame(){
-  const deck=createDeck();
-  let hands=[[],[]];
-  for(let p=0;p<2;p++) for(let k=0;k<5;k++) hands[p].push(deck.pop());
-  let center=deck.pop();
-  while(center.number===2||center.number===5||center.number===8||center.number===20||center.number===1||center.number===14){ // avoid special start
-    deck.unshift(center); center=deck.pop();
-  }
-  gameState={
-    deck,
-    discard:[center],
-    hands,
-    curr:0,
-    currentShape:center.shape==='whot'?'circle':center.shape,
-    pickAccum:0,
-    hold:false,
-    suspended:false,
-    winner:null,
-    log:['Game started. Center:'+formatCard(center)]
-  };
-  renderAll();
+function canPlay(card){
+ if(center.shape==='whot') return true; // after whot choose shape handled via center.shape overwritten? we store currentShape in center.shape for simplicity after whot
+ if(pickAccum>0){
+  if(center.number===2 && card.number===2) return true;
+  if(center.number===5 && card.number===5) return true;
+  return false; // must defend or draw
+ }
+ if(card.shape==='whot') return true;
+ if(card.shape===center.shape) return true;
+ if(card.number===center.number) return true;
+ return false;
 }
-function formatCard(c){if(!c)return ''; if(c.shape==='whot') return 'WHOT 20'; return c.shape+' '+c.number;}
-function cardValid(card, top, currentShape, pickAccum){
-  if(pickAccum>0){
-    // must defend pick
-    if(card.number===2||card.number===5) return true; // only pick cards can defend, or whot? allow whot? Whot can defend? In Nigerian rules whot cannot defend pick? But allow whot as universal? Let's allow whot only if pick accum logic: whot cannot defend pick2/3 in real, but for simplicity allow whot only for shape. We'll require same pick type?
-    // If accum from 2s, only 2 defends; from 5s only 5 defends
-    if(top.number===2 && card.number===2) return true;
-    if(top.number===5 && card.number===5) return true;
-    // whot cannot defend pick
-    return false;
-  }
-  if(card.shape==='whot') return true;
-  if(card.number===top.number) return true;
-  if(card.shape===currentShape) return true;
-  return false;
+function playCard(i){
+ let card=my[i];
+ if(turn!==1){ alert('Not your turn'); return; }
+ if(!canPlay(card)){ alert(`Cannot play ${card.shape} ${card.number} on ${center.shape} ${center.number}`); return; }
+ my.splice(i,1);
+ // handle specials
+ if(card.number===1){ // hold on
+  center=card; updateUI(); document.getElementById('msg').innerText='Hold On! You go again'; // stay same turn
+  pushRoom(); return;
+ }
+ if(card.number===2){ pickAccum+=2; center=card; }
+ else if(card.number===5){ pickAccum+=3; center=card; }
+ else if(card.number===8){ // suspension
+  center=card; turn=1; // skip opponent, you again
+  updateUI(); document.getElementById('msg').innerText='Suspension! Opponent skipped'; pushRoom(); return;
+ }
+ else if(card.number===14){ // general market
+  center=card; pickAccum=0; // opponent picks 1?
+  // opponent picks 1
+  if(deck.length) opp.push(deck.pop());
+  updateUI();
+ }
+ else if(card.number===20){ // whot
+  let shape=prompt('WHOT! Choose shape: circle, triangle, cross, square, star'); if(!shape) shape='circle'; shape=shape.toLowerCase(); if(!shapes.includes(shape)) shape='circle';
+  center={shape:shape,number:20}; // set chosen shape
+  my.push({shape:'whot',number:20}) // remove? actually already removed
+  my.pop(); // undo extra
+  center.shape=shape; center.number=20;
+  // keep card as whot with chosen shape
+  // Actually set center to shape chosen with number 20
+  center={shape:shape,number:20,chosen:true};
+ }
+ else {
+  center=card;
+ }
+ if(card.number!==1 && card.number!==8){
+  turn=turn===1?0:1;
+  // AI opponent auto play if local
+  if(!roomCode) setTimeout(aiPlay,800);
+ }
+ updateUI(); pushRoom();
 }
-
-function addLog(t){
-  const lg=document.getElementById('log');
-  const d=document.createElement('div');d.textContent=new Date().toLocaleTimeString()+' '+t;
-  lg.prepend(d);
-  if(gameState)gameState.log.unshift(t);
-}
-
-let pendingWhotCard=null;
-
-function playCard(playerIdx, cardIdx){
-  if(gameState.winner!==null) return;
-  if(gameState.curr!==playerIdx) {addLog('Not your turn');return;}
-  const hand=gameState.hands[playerIdx];
-  const card=hand[cardIdx];
-  const top=gameState.discard[gameState.discard.length-1];
-  if(!cardValid(card, top, gameState.currentShape, gameState.pickAccum)){
-    addLog('Invalid: need shape '+gameState.currentShape+' or number '+top.number);
-    // shake feedback
-    return;
-  }
-  // remove from hand
-  hand.splice(cardIdx,1);
-  gameState.discard.push(card);
-  addLog((playerIdx===0?'You':'Opp')+' played '+formatCard(card));
-
-  // handle special
-  let staySame=false;
-  if(card.shape==='whot'){
-    if(hand.length===0){
-      // winning with whot? need shape selection still? win immediately
-    } else {
-      pendingWhotCard=card;
-      if(playerIdx===0) document.getElementById('shapePicker').style.display='flex';
-      else { // AI / opponent random shape from hand or random
-        const shapes=['circle','triangle','cross','square','star'];
-        let best=shapes[0];
-        if(hand.length>0){ // pick most common shape in hand
-          let counts={};hand.forEach(c=>{if(c.shape!=='whot')counts[c.shape]=(counts[c.shape]||0)+1});
-          let max=-1;for(let s in counts){if(counts[s]>max){max=counts[s];best=s;}}
-        }
-        chooseShape(best);
-        renderAll(); // early
-        // check win after choose?
-      }
-      // shape will be set in chooseShape
-    }
-  }
-  if(card.number===1){
-    staySame=true; addLog('Hold On! Same player again');
-  } else if(card.number===2){
-    if(gameState.pickAccum===0) gameState.pickAccum=2; else gameState.pickAccum+=2;
-    addLog('Pick 2 accumulated: '+gameState.pickAccum);
-  } else if(card.number===5){
-    if(gameState.pickAccum===0) gameState.pickAccum=3; else gameState.pickAccum+=3;
-    addLog('Pick 3 accumulated: '+gameState.pickAccum);
-  } else if(card.number===8){
-    gameState.suspended=true; addLog('Suspension! Next misses');
-  } else if(card.number===14){
-    // General Market: next player picks 1
-    gameState.pickAccum = gameState.pickAccum + 1;
-    addLog('General Market: next picks 1');
-  }
-
-  if(card.shape!=='whot') gameState.currentShape=card.shape==='whot'?gameState.currentShape:card.shape;
-
-  // win check
-  if(hand.length===0){
-    gameState.winner=playerIdx;
-    const winCredits=Math.floor(currentStake*2*0.9);
-    if(playerIdx===0){credits+=winCredits;renderCredits();}
-    addLog('WINNER: '+(playerIdx===0?'YOU':'OPPONENT')+' wins pot '+ (currentStake*2));
-    document.getElementById('statusTxt').textContent=(playerIdx===0?'YOU WIN! +'+winCredits:'YOU LOSE')+' Pot was '+(currentStake*2);
-    if(isOnline && roomCode){ syncRoom(); }
-    renderAll();
-    return;
-  }
-
-  // next turn logic
-  if(pendingWhotCard && playerIdx===0){ // wait for shape pick, don't advance yet
-    renderAll(); return;
-  }
-  if(staySame){
-    // same player again
+function aiPlay(){
+ if(turn!==0) return; if(opp.length===0) return;
+ // if pick accum
+ if(pickAccum>0){
+  // try defend
+  let defIdx=opp.findIndex(c=> (center.number===2 && c.number===2) || (center.number===5 && c.number===5));
+  if(defIdx>=0){
+   let c=opp.splice(defIdx,1)[0];
+   if(c.number===2) pickAccum+=2; if(c.number===5) pickAccum+=3; center=c; document.getElementById('msg').innerText=`Opponent defends with ${c.number}`; turn=1; updateUI(); pushRoom(); return;
   } else {
-    if(gameState.suspended){
-      // skip next
-      gameState.suspended=false;
-      // staySame? actually suspension means next misses, so we stay on same? No, current moves but skipping next means after skipping, turn goes back?
-      // With 2 players, suspension means same player again
-      addLog('Next player suspended, same player continues');
-      // keep same player
-    } else {
-      gameState.curr = 1 - gameState.curr;
-    }
+   // pick
+   for(let i=0;i<pickAccum;i++){ if(deck.length) opp.push(deck.pop()); } pickAccum=0; document.getElementById('msg').innerText=`Opponent picked ${pickAccum||''} cards`; turn=1; updateUI(); pushRoom(); return;
   }
-  // if next player has pick accum and cannot defend, they must pick on their turn, but we leave handling to their turn action
-  renderAll();
-  if(isOnline){ syncRoom(); }
-  else if(gameState.curr===1 && mode==='local'){
-    setTimeout(aiMove,800);
-  }
+ }
+ let idx=opp.findIndex(c=>canPlay(c));
+ if(idx>=0){
+  let c=opp.splice(idx,1)[0];
+  if(c.number===20){ let s=shapes[Math.floor(Math.random()*shapes.length)]; center={shape:s,number:20}; document.getElementById('msg').innerText=`Opponent WHOT chooses ${s}`; }
+  else center=c;
+  if(c.number===1){ document.getElementById('msg').innerText='Opponent Hold On'; turn=0; setTimeout(aiPlay,800); }
+  else if(c.number===8){ document.getElementById('msg').innerText='Opponent Suspension - you skipped!'; turn=0; setTimeout(aiPlay,800); }
+  else { turn=1; }
+ } else {
+  // draw
+  if(deck.length) opp.push(deck.pop()); document.getElementById('msg').innerText='Opponent picked from market'; turn=1;
+ }
+ updateUI(); pushRoom();
 }
-
-function chooseShape(shape){
-  gameState.currentShape=shape;
-  document.getElementById('shapePicker').style.display='none';
-  addLog('Whot shape chosen: '+shape);
-  pendingWhotCard=null;
-  // after whot, go to next player unless hold? Whot card number 20 has no hold, so advance
-  if(gameState.suspended){
-    gameState.suspended=false;
-  } else {
-    gameState.curr = 1 - gameState.curr;
-  }
-  renderAll();
-  if(isOnline) syncRoom();
-  else if(gameState.curr===1) setTimeout(aiMove,700);
+function drawCard(){
+ if(turn!==1){ alert('Not your turn'); return; }
+ if(pickAccum>0){
+  for(let i=0;i<pickAccum;i++){ if(deck.length) my.push(deck.pop()); } pickAccum=0; turn=0; document.getElementById('msg').innerText=`You picked ${pickAccum||''} cards - opponent turn`; setTimeout(aiPlay,800);
+ } else {
+  if(deck.length) my.push(deck.pop()); turn=0; document.getElementById('msg').innerText='You picked - opponent turn'; setTimeout(aiPlay,800);
+ }
+ updateUI(); pushRoom();
 }
-document.querySelectorAll('.shape-btn').forEach(btn=>btn.onclick=()=>chooseShape(btn.dataset.shape));
-
-function pickFromMarket(playerIdx){
-  if(gameState.winner!==null) return;
-  if(gameState.curr!==playerIdx) {addLog('Not your turn');return;}
-  let toPick = gameState.pickAccum>0 ? gameState.pickAccum : 1;
-  // if pickAccum >0 and player didn't defend, they must pick and lose turn
-  for(let i=0;i<toPick;i++){
-    if(gameState.deck.length===0){
-      // reshuffle discard except top
-      if(gameState.discard.length<=1){addLog('Market empty');break;}
-      const top=gameState.discard.pop();
-      gameState.deck=gameState.discard.splice(0);
-      // shuffle deck
-      for(let j=gameState.deck.length-1;j>0;j--){let k=Math.floor(Math.random()*(j+1));[gameState.deck[j],gameState.deck[k]]=[gameState.deck[k],gameState.deck[j]];}
-      gameState.discard=[top];
-    }
-    if(gameState.deck.length>0){
-      const c=gameState.deck.pop();
-      gameState.hands[playerIdx].push(c);
-    }
-  }
-  addLog((playerIdx===0?'You':'Opp')+' picked '+toPick+' card(s)');
-  gameState.pickAccum=0;
-  // after pick, turn passes
-  gameState.curr = 1 - gameState.curr;
-  renderAll();
-  if(isOnline) syncRoom();
-  else if(gameState.curr===1 && mode==='local') setTimeout(aiMove,700);
+async function createRoom(){
+ if(!window._fb || !window._currentUser){ alert('Sign Gmail for online, or use Local'); startLocal(); return; }
+ if(credits<stake){ alert('Need '+stake); return; }
+ roomCode='WHOT-'+Math.floor(1000+Math.random()*9000);
+ try{ const {doc,setDoc,serverTimestamp,db}=window._fb; await setDoc(doc(db,'whot_rooms',roomCode),{deck,myHand:my,oppHand:opp,center,turn,stake,pot,host:window._currentUser.uid,status:'playing',createdAt:serverTimestamp()}); credits-=stake; localStorage.setItem('ethan_credits',credits); document.getElementById('roomBadge').innerText='Room: '+roomCode+' Host Golden'; listen(roomCode);}catch(e){alert(e.message)}
 }
-
-function aiMove(){
-  if(!gameState || gameState.winner!==null) return;
-  if(gameState.curr!==1) return;
-  const hand=gameState.hands[1];
-  const top=gameState.discard[gameState.discard.length-1];
-  // if pickAccum>0 try defend
-  if(gameState.pickAccum>0){
-    let defIdx=hand.findIndex(c=> (top.number===2 && c.number===2) || (top.number===5 && c.number===5));
-    if(defIdx>=0){playCard(1,defIdx);return;}
-    else{pickFromMarket(1);return;}
-  }
-  // find playable
-  let idx=hand.findIndex(c=>cardValid(c, top, gameState.currentShape, 0));
-  if(idx>=0) playCard(1,idx);
-  else pickFromMarket(1);
+async function joinRoom(){
+ let code=document.getElementById('roomInput').value.trim().toUpperCase(); if(!code)return alert('Enter code'); if(!window._fb || !window._currentUser) return alert('Sign Gmail'); roomCode=code; try{ const {doc,getDoc,db}=window._fb; let snap=await getDoc(doc(db,'whot_rooms',roomCode)); if(!snap.exists()) return alert('Room not found'); let d=snap.data(); deck=d.deck; my=d.oppHand; opp=d.myHand; center=d.center; turn=d.turn; document.getElementById('roomBadge').innerText='Room: '+roomCode+' Black'; updateUI(); listen(roomCode);}catch(e){alert(e.message)}
 }
-
-function makeCardEl(card, idx, playable){
-  const d=document.createElement('div');
-  d.className='card'+(card.shape==='whot'?' wh':'');
-  d.innerHTML=`<span class="num">${card.number===20?'Whot':card.number}</span><span class="shape">${card.shape==='whot'?'W':(SHAPES[card.shape]?.icon||card.shape[0])}</span><span class="small">${card.shape}</span>`;
-  if(!playable) d.style.opacity='.6';
-  return d;
-}
-
-function renderAll(){
-  if(!gameState) return;
-  const youHandEl=document.getElementById('youHand');
-  const oppHandEl=document.getElementById('oppHand');
-  const marketCount=document.getElementById('marketCount');
-  const discardTop=document.getElementById('discardTop');
-  const currentShapeEl=document.getElementById('currentShape');
-  const pickAccumEl=document.getElementById('pickAccum');
-  const statusTxt=document.getElementById('statusTxt');
-  const youLabel=document.getElementById('youLabel');
-  const oppLabel=document.getElementById('oppLabel');
-  const youTurn=document.getElementById('youTurn');
-  const oppTurn=document.getElementById('oppTurn');
-  const infoTurn=document.getElementById('infoTurn');
-
-  const top=gameState.discard[gameState.discard.length-1];
-  youHandEl.innerHTML=''; oppHandEl.innerHTML='';
-  // opponent hand: if local show backs? Show count? show back for enemy, but for local 2P show cards? Requirement: auto flip for black player where relevant -> show both? For local, show opp hand face up too.
-  const oppCards=gameState.hands[1];
-  oppCards.forEach((c,i)=>{
-    const el=mode==='local'?makeCardEl(c,i,cardValid(c,top,gameState.currentShape,gameState.pickAccum)) : (function(){let b=document.createElement('div');b.className='card back';b.innerHTML='<span class="small">WHOT</span>';return b;})();
-    if(mode==='local'){el.onclick=()=>{if(gameState.curr===1)playCard(1,i);};} oppHandEl.appendChild(el);
-  });
-  const youCards=gameState.hands[0];
-  youCards.forEach((c,i)=>{
-    const playable=cardValid(c,top,gameState.currentShape,gameState.pickAccum) && gameState.curr===0;
-    const el=makeCardEl(c,i,playable);
-    if(playable) el.classList.add('selected');
-    el.onclick=()=>{playCard(0,i);};
-    youHandEl.appendChild(el);
-  });
-
-  marketCount.textContent=gameState.deck.length;
-  discardTop.innerHTML=`<div class="card wh" style="width:80px;height:112px;margin:0"><span class="num">${top.number===20?'Whot':top.number}</span><span class="shape">${top.shape==='whot'?'W':(SHAPES[top.shape]?.icon||top.shape)}</span><span class="small">${top.shape}</span></div>`;
-  currentShapeEl.textContent='Need Shape: '+(gameState.currentShape==='whot'?'any':gameState.currentShape)+' | Top: '+top.number+' '+top.shape;
-  pickAccumEl.textContent='Pick Accum: '+gameState.pickAccum;
-  youLabel.textContent='You ('+youCards.length+' cards)';
-  oppLabel.textContent='Opponent ('+oppCards.length+' cards)'+(isOnline?' '+(playerIndex===0?'(you are P1)':'(you are P2)'):'');
-  const currName=gameState.curr===0?'YOUR TURN':'OPPONENT TURN';
-  infoTurn.textContent=currName;
-  if(gameState.curr===0){youTurn.style.display='block';oppTurn.style.display='none';} else {youTurn.style.display='none';oppTurn.style.display='block';}
-  if(gameState.winner!==null){
-    statusTxt.textContent= gameState.winner===0 ? 'YOU WIN! Press Local 2P to restart' : 'OPPONENT WINS!';
-  } else {
-    statusTxt.textContent= (gameState.pickAccum>0? 'PICK '+gameState.pickAccum+'! Defend with same pick card or take it. ' : '') + 'Turn: '+(gameState.curr===0?'You':'Opponent')+' | Match shape ('+gameState.currentShape+') or number ('+top.number+'), Whot can go anytime.';
-  }
-}
-
-// Controls
-document.getElementById('localBtn').onclick=()=>{
-  mode='local';isOnline=false;playerIndex=0;if(roomUnsub){roomUnsub();roomUnsub=null;}roomCode=null;document.getElementById('roomLabel').textContent='';
-  document.querySelectorAll('.room-row button').forEach(b=>b.classList.remove('active'));
-  document.getElementById('localBtn').classList.add('active');
-  newGame();
-};
-document.getElementById('marketPile').onclick=()=>{if(!isOnline || playerIndex===gameState.curr) pickFromMarket(gameState.curr); else if(!isOnline) pickFromMarket(0);};
-document.getElementById('pickBtn').onclick=()=>{pickFromMarket(gameState.curr);};
-
-document.getElementById('createBtn').onclick=async()=>{
-  if(credits<currentStake){alert('Not enough credits');return;}
-  const code='WHOT-'+Math.random().toString(36).substring(2,6).toUpperCase();
-  roomCode=code;
-  credits-=currentStake; renderCredits();
-  const deck=createDeck();
-  let hands=[[],[]];
-  for(let p=0;p<2;p++) for(let k=0;k<5;k++) hands[p].push(deck.pop());
-  let center=deck.pop();
-  while([1,2,5,8,14,20].includes(center.number)) {deck.unshift(center);center=deck.pop();}
-  const initState={
-    deck,
-    discard:[center],
-    hands,
-    curr:0,
-    currentShape:center.shape==='whot'?'circle':center.shape,
-    pickAccum:0,
-    hold:false,
-    suspended:false,
-    winner:null,
-    log:[],
-    players:1,
-    stake:currentStake,
-    pot:currentStake*2,
-    createdAt:Date.now()
-  };
-  isOnline=true;
-  mode='online';
-  playerIndex=0;
-  try{
-    const rDoc=window.doc(window.db,'whot_rooms',code);
-    await window.setDoc(rDoc,initState);
-    gameState=initState;
-    document.getElementById('roomLabel').textContent='Room '+code+' (waiting)';
-    document.getElementById('createBtn').classList.add('active');
-    document.getElementById('localBtn').classList.remove('active');
-    subscribeRoom(code);
-    renderAll();
-    addLog('Room created '+code);
-  }catch(e){console.error(e);alert('Firebase error '+e.message);}
-};
-document.getElementById('joinBtn').onclick=async()=>{
-  const input=document.getElementById('joinInput').value.trim().toUpperCase();
-  if(!input){alert('Enter code');return;}
-  if(credits<currentStake){alert('Not enough credits');return;}
-  roomCode=input;
-  const rDoc=window.doc(window.db,'whot_rooms',input);
-  const snap=await window.getDoc(rDoc);
-  if(!snap.exists()){alert('Room not found');return;}
-  const data=snap.data();
-  if(data.players>=2){alert('Room full');return;}
-  credits-=currentStake;renderCredits();
-  isOnline=true;mode='online';playerIndex=1;
-  await window.updateDoc(rDoc,{players:2});
-  document.getElementById('roomLabel').textContent='Room '+input+' joined as P2';
-  subscribeRoom(input);
-  addLog('Joined '+input);
-};
-
-function subscribeRoom(code){
-  const rDoc=window.doc(window.db,'whot_rooms',code);
-  if(roomUnsub) roomUnsub();
-  roomUnsub=window.onSnapshot(rDoc,(snap)=>{
-    if(!snap.exists()) return;
-    const data=snap.data();
-    // For playerIndex mapping, hands are absolute: 0 host, 1 joiner. If we are P1, we keep as is; if P2, we flip view: you are hands[1]
-    if(playerIndex===1){
-      // flip hands for rendering: we want youHand = hands[1]
-      gameState={
-        deck:data.deck,
-        discard:data.discard,
-        hands:[data.hands[1],data.hands[0]], // you first
-        curr: data.curr===1?0: data.curr===0?1:data.curr,
-        currentShape:data.currentShape,
-        pickAccum:data.pickAccum,
-        hold:data.hold,
-        suspended:data.suspended,
-        winner:data.winner!==null ? (data.winner===1?0:1) : null,
-        log:data.log||[],
-        stake:data.stake
-      };
-      // but for sync we need to map back, so we keep raw separately
-      gameState._raw=data;
-      gameState._rawCurr=data.curr;
-    } else {
-      gameState={
-        deck:data.deck,
-        discard:data.discard,
-        hands:data.hands,
-        curr:data.curr,
-        currentShape:data.currentShape,
-        pickAccum:data.pickAccum,
-        hold:data.hold,
-        suspended:data.suspended,
-        winner:data.winner,
-        log:data.log||[],
-        stake:data.stake,
-        _raw:data,
-        _rawCurr:data.curr
-      };
-    }
-    renderAll();
-  });
-}
-
-async function syncRoom(){
-  if(!roomCode || !gameState || !gameState._raw) {
-    // if host, raw is gameState itself when playerIndex 0?
-    // For host simplicity, gameState equals raw
-    if(playerIndex===0 && roomCode){
-      const rDoc=window.doc(window.db,'whot_rooms',roomCode);
-      const payload={
-        deck:gameState.deck,
-        discard:gameState.discard,
-        hands:gameState.hands,
-        curr:gameState.curr,
-        currentShape:gameState.currentShape,
-        pickAccum:gameState.pickAccum,
-        suspended:gameState.suspended||false,
-        winner:gameState.winner,
-        log:(gameState.log||[]).slice(0,50)
-      };
-      try{await window.updateDoc(rDoc,payload);}catch(e){console.error(e);}
-    }
-    return;
-  }
-  // player 1 case: need to unflip
-  const raw=gameState._raw;
-  let handsForServer;
-  let currForServer;
-  let winnerForServer=gameState.winner;
-  if(playerIndex===1){
-    handsForServer=[gameState.hands[1],gameState.hands[0]];
-    currForServer= gameState.curr===0?1:0;
-    if(gameState.winner!==null) winnerForServer= gameState.winner===0?1:0;
-  } else {
-    handsForServer=gameState.hands;
-    currForServer=gameState.curr;
-  }
-  const rDoc=window.doc(window.db,'whot_rooms',roomCode);
-  const payload={
-    deck:gameState.deck,
-    discard:gameState.discard,
-    hands:handsForServer,
-    curr:currForServer,
-    currentShape:gameState.currentShape,
-    pickAccum:gameState.pickAccum,
-    suspended:gameState.suspended||false,
-    winner:winnerForServer,
-    log:(gameState.log||[]).slice(0,50)
-  };
-  try{await window.updateDoc(rDoc,payload);}catch(e){console.error(e);}
-}
-
-// Init
-newGame();
-</script>
-</body>
-</html>
+function listen(code){ if(unsub) unsub(); const {doc,onSnapshot,db}=window._fb; unsub=onSnapshot(doc(db,'whot_rooms',code),(s)=>{if(!s.exists())return; let d=s.data(); deck=d.deck; if(d.myHand) my=d.myHand; center=d.center; turn=d.turn; updateUI();});}
+async function pushRoom(){ if(!roomCode||!window._fb)return; try{ const {doc,updateDoc,db}=window._fb; await updateDoc(doc(db,'whot_rooms',roomCode),{deck,myHand:my,oppHand:opp,center,turn});}catch(e){} }
+setStake(100); startLocal();
+</script></body></html>

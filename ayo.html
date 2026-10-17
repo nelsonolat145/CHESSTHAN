@@ -2,601 +2,174 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AYO OLOPON - Black & Golden</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AYO OLOPON - BLACK & GOLD - MUST PLAY INSTANTLY</title>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
-<script type="importmap">
-{
-  "imports": {
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
-  }
-}
-</script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--black:#000;--gold:#FFD700;--gold2:#FFC300;--goldGlow:0 0 18px rgba(255,215,0,.55),0 0 36px rgba(255,215,0,.25)}
-body{background:#000;color:var(--gold);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
-.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:2px solid var(--gold);background:linear-gradient(180deg,#0a0a0a,#000);box-shadow:var(--goldGlow);position:sticky;top:0;z-index:20}
-.brand{font-family:'Cinzel',serif;font-weight:900;letter-spacing:.12em;font-size:18px;color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.8)}
-.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.btn{border:1.6px solid var(--gold);background:#0a0a0a;color:var(--gold);padding:7px 12px;border-radius:999px;font-weight:800;font-size:12px;cursor:pointer;letter-spacing:.04em;transition:.15s;box-shadow:inset 0 0 0 1px rgba(255,215,0,.15)}
-.btn:hover{background:var(--gold);color:#000;box-shadow:var(--goldGlow)}
-.btn.active{background:var(--gold);color:#000}
-.btn.small{padding:5px 9px;font-size:11px}
-.wallet{display:flex;align-items:center;gap:6px;border:1px solid var(--gold);border-radius:999px;padding:4px 8px;background:#111}
-.wallet b{color:#fff}
-.stakeBar{display:flex;gap:4px;align-items:center}
-.main{display:flex;flex-direction:column;align-items:center;padding:14px 8px;gap:12px}
-.boardWrap{position:relative;width:min(96vw,760px);background:radial-gradient(800px 400px at 50% -10%,#1a1500,#000 70%);border:2px solid var(--gold);border-radius:24px;padding:18px 14px 14px;box-shadow:var(--goldGlow),inset 0 0 30px rgba(255,215,0,.08)}
-.boardHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.playerTag{padding:6px 12px;border-radius:999px;border:1.5px solid var(--gold);font-weight:800;font-size:12px;letter-spacing:.06em}
-.playerTag.active{background:var(--gold);color:#000;box-shadow:var(--goldGlow);animation:pulse 1s infinite alternate}
-.playerTag.p0{background:linear-gradient(180deg,#332a00,#1a1500);color:var(--gold)}
-.playerTag.p1{background:#000;color:var(--gold);border-style:dashed}
-.potCenter{font-family:'Cinzel',serif;font-weight:900;font-size:14px}
-@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
-.stores{display:flex;justify-content:space-between;gap:10px;margin:6px 0}
-.omu{width:64px;min-height:128px;border:2px solid var(--gold);border-radius:32px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 4px;background:linear-gradient(180deg,#0f0d00,#000);box-shadow:inset 0 0 15px rgba(255,215,0,.15)}
-.omu b{font-size:18px;color:#fff;margin-top:4px}
-.omu label{font-size:10px;letter-spacing:.12em;opacity:.8}
-.row{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:8px 4px}
-.hole{aspect-ratio:1/1;border:2px solid var(--gold);border-radius:50%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px;padding:6px;cursor:pointer;position:relative;transition:.15s;box-shadow:inset 0 0 12px rgba(255,215,0,.12)}
-.hole.golden{background:radial-gradient(circle at 35% 30%,#fff7b0,#FFD700 30%,#a67c00 80%);border-color:var(--gold2)}
-.hole.black{background:radial-gradient(circle at 35% 30%,#333,#000 60%);border-color:var(--gold)}
-.hole.selectable{box-shadow:var(--goldGlow),inset 0 0 12px rgba(255,215,0,.2);transform:translateY(-2px)}
-.hole.disabled{opacity:.35;pointer-events:none}
-.seed{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.8)}
-.seed.goldSeed{background:radial-gradient(circle at 30% 30%,#fff,#FFD700 45%,#8a6500)}
-.seed.blackSeed{background:radial-gradient(circle at 30% 30%,#666,#000)}
-.seed.capturedSeed{background:radial-gradient(circle at 30% 30%,#ffec8b,#FFD700)}
-.hole.animated{animation:bounce .3s}
-@keyframes bounce{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
-.turnInfo{text-align:center;margin-top:8px;font-weight:800;letter-spacing:.08em;font-size:12px;min-height:18px}
-.timer{color:#fff;font-variant-numeric:tabular-nums}
-.log{width:min(96vw,760px);max-height:160px;overflow:auto;border:1px solid rgba(255,215,0,.35);border-radius:12px;padding:8px;background:#080800;font-size:11px;line-height:1.5}
-.log b{color:#fff}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
-.modal.open{display:flex}
-.card{background:linear-gradient(180deg,#171300,#000);border:2px solid var(--gold);border-radius:16px;padding:18px;width:min(92vw,380px);box-shadow:var(--goldGlow);text-align:center}
-input{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid var(--gold);background:#000;color:var(--gold);margin:8px 0;font-weight:700;text-align:center;letter-spacing:.1em}
-.flip .row.top{order:2}
-.flip .row.bottom{order:1}
-.flip .stores{flex-direction:row-reverse}
+:root{--black:#000;--gold:#FFD700;--goldGlow:0 0 18px #FFD700,0 0 36px rgba(255,215,0,.5)}
+*{box-sizing:border-box}
+body{margin:0;background:#000;color:#FFD700;font-family:ui-sans,system-ui,Segoe UI,Roboto,Arial;font-size:18px}
+h1{margin:12px 0 6px;font-size:28px;font-weight:900;text-shadow:var(--goldGlow);letter-spacing:1px;text-align:center}
+.wrap{max-width:860px;margin:0 auto;padding:10px 12px 40px}
+.card{background:radial-gradient(120% 120% at 50% 0%,#1c1c1c 0%,#0a0a0a 55%,#000 100%);border:4px solid #FFD700;border-radius:20px;box-shadow:0 0 0 2px #000 inset,0 8px 28px rgba(0,0,0,.9),var(--goldGlow);padding:14px;margin:12px 0}
+.row-flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.btn{background:linear-gradient(180deg,#FFE55A 0%,#FFD700 52%,#C89A00 100%);color:#000;border:3px solid #000;border-radius:14px;padding:12px 18px;font-weight:900;font-size:18px;cursor:pointer;box-shadow:0 4px 0 #7A5E00,0 0 16px rgba(255,215,0,.7);min-width:120px}
+.btn:active{transform:translateY(3px)}
+.btn-ghost{background:#111;color:#FFD700;border:3px solid #FFD700;border-radius:14px;padding:11px 14px;font-weight:800;font-size:16px;cursor:pointer}
+.badge{display:inline-flex;align-items:center;gap:6px;background:#000;border:3px solid #FFD700;border-radius:999px;padding:8px 14px;font-weight:900;font-size:15px;box-shadow:0 0 12px rgba(255,215,0,.3)}
+.badge.active{background:#FFD700;color:#000;box-shadow:var(--goldGlow);transform:scale(1.05)}
+#msg{background:#000;border:4px solid #FFD700;border-radius:16px;padding:14px;font-size:20px;font-weight:800;min-height:54px;text-align:center;box-shadow:var(--goldGlow)}
+.board-shell{background:linear-gradient(180deg,#3a2700 0%,#8B5A00 20%,#5A3A00 40%,#8B6500 60%,#3D2600 100%);border:5px solid #FFD700;border-radius:28px;padding:14px;box-shadow:0 0 0 3px #000 inset,0 12px 32px rgba(0,0,0,.9),var(--goldGlow)}
+.inside{display:grid;grid-template-columns:88px 1fr 88px;gap:12px;align-items:center}
+.stores{width:80px;min-height:340px;height:340px;background:radial-gradient(80% 80% at 50% 15%,#1a1a1a 0%,#000 70%);border:4px solid #FFD700;border-radius:36px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px 6px;box-shadow:0 0 0 2px #000 inset,0 0 18px rgba(255,215,0,.55)}
+.store-label{font-weight:900;font-size:16px}
+.store-count{font-size:36px;font-weight:900;line-height:1;text-shadow:var(--goldGlow)}
+.store-seeds{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:66px}
+.rows{display:flex;flex-direction:column;gap:12px}
+.pit-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.hole{width:80px;height:80px;min-width:80px;min-height:80px;border:4px solid #FFD700;border-radius:50%;background:radial-gradient(60% 60% at 35% 30%,#2b2b2b 0%,#0f0f0f 55%,#000 100%);box-shadow:0 0 0 2px #000 inset,0 6px 14px rgba(0,0,0,.9),inset 0 8px 16px rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;user-select:none}
+.hole.golden{background:radial-gradient(70% 70% at 35% 30%,#FFF8A0 0%,#FFD700 45%,#B89600 100%);border-color:#fff;box-shadow:0 0 0 2px #000 inset,0 0 22px rgba(255,215,0,.9)}
+.hole.black{background:radial-gradient(65% 65% at 35% 30%,#444 0%,#111 50%,#000 100%)}
+.hole.my-turn{box-shadow:0 0 0 2px #000 inset,0 0 22px #FFD700,0 0 44px rgba(255,215,0,.6);transform:scale(1.06);border-color:#fffbe6}
+.hole .num{position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);background:#000;border:3px solid #FFD700;border-radius:999px;padding:2px 8px;font-size:16px;font-weight:900;min-width:28px;text-align:center}
+.hole.golden .num{background:#FFD700;color:#000;border-color:#000}
+.seed{width:14px;height:14px;border-radius:50%;display:inline-block;margin:1.5px;box-shadow:0 2px 2px rgba(0,0,0,.8),inset 0 2px 3px rgba(255,255,255,.8);border:1px solid rgba(0,0,0,.6)}
+.seed.gold{background:radial-gradient(50% 50% at 30% 30%,#FFFAD0 0%,#FFD700 60%,#8A6A00 100%)}
+.seed.black{background:radial-gradient(50% 50% at 30% 30%,#888 0%,#222 60%,#000 100%);border-color:#FFD700}
+@keyframes flash{0%,100%{box-shadow:0 0 0 2px #000 inset,0 0 22px #FFD700}50%{box-shadow:0 0 0 2px #000 inset,0 0 36px #fff,0 0 60px #FFD700;transform:scale(1.15)}}
+.hole.flash{animation:flash .45s 2}
+input{width:100%;background:#000;border:3px solid #FFD700;border-radius:12px;padding:12px;color:#FFD700;font-weight:800;font-size:16px}
+@media(max-width:720px){.inside{grid-template-columns:1fr}.stores{flex-direction:row;width:100%;height:88px;min-height:88px}.pit-row{gap:6px}.hole{width:52px;height:52px;min-width:52px;min-height:52px}.seed{width:11px;height:11px}h1{font-size:22px}}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <div class="brand">AYO OLOPON — BLACK & GOLDEN</div>
-  <div class="controls">
-    <button class="btn small" id="authBtn">SIGN IN WITH GOOGLE</button>
-    <span id="authName" style="font-size:11px;color:#fff;display:none"></span>
-    <div class="wallet">💰 <b id="creditBal">0</b> <span style="font-size:10px">CR</span> <button class="btn small" onclick="buyCredits(1000)" style="margin-left:4px">BUY</button></div>
-  </div>
-  <div class="controls" style="width:100%;justify-content:space-between;border-top:1px dashed rgba(255,215,0,.25);padding-top:6px;margin-top:2px">
-    <div class="stakeBar">
-      <span style="font-size:10px;font-weight:800;letter-spacing:.1em">STAKE:</span>
-      <button class="btn small stakeBtn active" data-stake="100">100</button>
-      <button class="btn small stakeBtn" data-stake="500">500</button>
-      <button class="btn small stakeBtn" data-stake="1000">1000</button>
-      <button class="btn small stakeBtn" data-stake="5000">5000</button>
-      <span style="font-size:11px;margin-left:6px" class="timer">POT: <b id="potView" style="color:#fff">200</b></span>
-    </div>
-    <div class="controls">
-      <button class="btn small" id="modeLocal">LOCAL 2P</button>
-      <button class="btn small" id="modeCreate">CREATE ROOM</button>
-      <button class="btn small" id="modeJoin">JOIN ROOM</button>
-      <span id="roomCodeView" style="font-size:11px;font-weight:900;letter-spacing:.12em;color:#fff"></span>
-      <button class="btn small" id="leaveRoom" style="display:none">LEAVE</button>
-    </div>
-  </div>
+<div class="wrap">
+<h1>🫘 AYO OLOPON — BLACK & GOLD</h1>
+<div class="card row-flex">
+  <div><span id="authInfo" style="font-weight:900;font-size:18px">Local Ready — Gmail optional</span></div>
+  <div style="display:flex;gap:8px"><button id="authBtn" class="btn-ghost">Sign Gmail</button></div>
 </div>
-
-<div class="main">
-  <div class="boardWrap" id="boardWrap">
-    <div class="boardHead">
-      <div class="playerTag p1" id="tagP1">BLACK (P2) • <span id="scoreP1">0</span></div>
-      <div class="potCenter">TIMER <span id="gameTimer" class="timer">03:00</span> • <span id="turnLabel">GOLDEN'S TURN</span></div>
-      <div class="playerTag p0 active" id="tagP0">GOLDEN (P1) • <span id="scoreP0">0</span></div>
-    </div>
-    <div class="stores">
-      <div class="omu"><label>P1 OMU</label><b id="omu1">0</b></div>
-      <div style="flex:1">
-        <div class="row top" id="rowTop"></div>
-        <div class="row bottom" id="rowBottom"></div>
-      </div>
-      <div class="omu"><label>P0 OMU</label><b id="omu0">0</b></div>
-    </div>
-    <div class="turnInfo" id="msg">Click a GOLDEN hole to sow • 4 seeds each to start</div>
+<div class="card">
+  <div class="row-flex">
+    <div style="font-size:20px;font-weight:900">🪙 <span id="credits">500</span> credits <span class="badge">Pot <span id="pot">200</span></span><span class="badge active">WIN <span id="win">180</span></span></div>
+    <button class="btn" onclick="buyCredits(500)">Buy 500c</button><button class="btn-ghost" onclick="buyCredits(2000)">Buy 2k</button>
   </div>
-  <div class="log" id="log"></div>
+  <div class="row-flex" style="margin-top:10px"><span style="font-weight:900">Stake:</span><button class="btn-ghost" onclick="setStake(100)">100</button><button class="btn-ghost" onclick="setStake(500)">500</button><button class="btn" onclick="setStake(1000)">1000</button><button class="btn-ghost" onclick="setStake(5000)">5000</button></div>
+  <div class="row-flex" style="margin-top:12px"><button class="btn" style="flex:1;min-height:56px;font-size:20px" onclick="startLocal()">▶ Local 2P Start — PLAY NOW</button></div>
+  <div class="row-flex" style="margin-top:10px"><button class="btn-ghost" onclick="createRoom()">Create Online Room</button><button class="btn-ghost" onclick="joinRoom()">Join Room</button><input id="roomInput" placeholder="AYO-1234" style="max-width:160px"></div>
 </div>
-
-<div class="modal" id="joinModal">
-  <div class="card">
-    <h3 style="font-family:Cinzel">JOIN AYO ROOM</h3>
-    <p style="font-size:12px;margin:6px 0">Enter code e.g. AYO-AB12</p>
-    <input id="joinInput" placeholder="AYO-XXXX" maxlength="8"/>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn" style="flex:1" id="joinConfirm">JOIN</button>
-      <button class="btn" style="flex:1" onclick="closeModal()">CANCEL</button>
-    </div>
-  </div>
+<div class="card">
+  <div class="row-flex" style="justify-content:center;gap:10px;margin-bottom:10px"><span class="badge" id="roomBadge">No Room — Local Mode</span><span class="badge active" id="turnBadge">● GOLDEN TURN</span><span class="badge" id="scoreBadge">Gold 0 - Black 0</span></div>
+  <div class="board-shell"><div class="inside" id="boardWrap"></div></div>
+  <div id="msg" style="margin-top:14px">Click your hole to sow seeds. Golden = bottom row. Black = top row. Capture when opponent pit becomes 2 or 3.</div>
+  <div style="margin-top:8px;display:flex;gap:8px;justify-content:center"><button class="btn-ghost" onclick="startLocal()">Restart</button><button class="btn-ghost" onclick="toggleSound()">🔊 Sound <span id="sndTxt">On</span></button></div>
 </div>
-
-<div class="modal" id="winModal">
-  <div class="card">
-    <h2 id="winTitle" style="font-family:Cinzel">GOLDEN WINS!</h2>
-    <p id="winSub" style="margin:8px 0;font-size:13px"></p>
-    <p id="potResult" style="margin:6px 0;font-weight:900"></p>
-    <button class="btn" onclick="resetGame()" style="margin-top:10px;width:100%">PLAY AGAIN</button>
-    <button class="btn small" onclick="closeWin()" style="margin-top:8px;width:100%">CLOSE</button>
-  </div>
 </div>
-
 <script type="module">
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
-  authDomain: "chessbyethan.firebaseapp.com",
-  projectId: "chessbyethan",
-  storageBucket: "chessbyethan.firebasestorage.app",
-  messagingSenderId: "348012561404",
-  appId: "1:348012561404:web:3a55b0d7f1c2f4e5a6b7c8",
-  measurementId: "G-9E5LQK1234"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-// Expose for inline
-window.db = db;
-window.firestoreDoc = doc;
-window.firestoreSetDoc = setDoc;
-window.firestoreUpdateDoc = updateDoc;
-
-let user=null;
-const authBtn=document.getElementById('authBtn');
-const authName=document.getElementById('authName');
-authBtn.onclick = async ()=>{
-  if(user){ await signOut(auth); return; }
-  try{ await signInWithPopup(auth, provider); }catch(e){ alert('Auth failed: '+e.message); }
-};
-onAuthStateChanged(auth, u=>{
-  user=u;
-  if(u){
-    authBtn.textContent='SIGN OUT';
-    authName.style.display='inline';
-    authName.textContent=u.displayName||u.email;
-  }else{
-    authBtn.textContent='SIGN IN WITH GOOGLE';
-    authName.style.display='none';
-  }
-});
-
-// --- Wallet ---
-function getCredits(){ return parseInt(localStorage.getItem('ethan_credits')||'2500',10); }
-function setCredits(v){ localStorage.setItem('ethan_credits', String(v)); renderCredits(); }
-function renderCredits(){
-  document.getElementById('creditBal').textContent=getCredits();
-  const st = parseInt(document.querySelector('.stakeBtn.active')?.dataset.stake||'100',10);
-  document.getElementById('potView').textContent = st*2;
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+try{
+ const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+ const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
+ window._fb={auth,db,doc,setDoc,getDoc,onSnapshot,updateDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+ const provider=new GoogleAuthProvider();
+ const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn');
+ authBtn.onclick=async()=>{ if(window._fb.auth.currentUser) await signOut(auth); else { try{await signInWithPopup(auth,provider)}catch(e){alert('Login failed: '+e.message)}}};
+ onAuthStateChanged(auth,u=>{
+   window._currentUser=u;
+   if(u){ authInfo.innerHTML='👤 '+ (u.displayName||u.email); authBtn.textContent='Sign Out'; }
+   else { authInfo.textContent='Local Ready — Gmail optional for online'; authBtn.textContent='Sign Gmail'; }
+ });
+}catch(e){ console.log('FB optional fail',e); }
+</script>
+<script>
+const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
+let credits = parseInt(localStorage.getItem('ethan_credits')||'500');
+let stake=100; let pot=200; let roomCode=null; let unsub=null;
+let board=[4,4,4,4,4,4,4,4,4,4,4,4];
+let stores=[0,0]; let turn=1; let playing=true; let animating=false; let soundOn=true;
+function saveCredits(){ localStorage.setItem('ethan_credits', credits); }
+function updateWallet(){
+  document.getElementById('credits').innerText=credits;
+  document.getElementById('pot').innerText=pot;
+  document.getElementById('win').innerText=Math.floor(pot*0.9);
+  document.getElementById('scoreBadge').innerText=`Gold ${stores[1]} - Black ${stores[0]}`;
+  document.getElementById('turnBadge').innerHTML=(turn===1?'● GOLDEN':'● BLACK')+' TURN';
 }
-window.renderCredits=renderCredits;
-renderCredits();
-
-window.buyCredits = function(amount){
-  const key="pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
-  if(typeof PaystackPop==='undefined'){ alert('Paystack not loaded'); return; }
-  const email = (user && user.email) || 'player@ayo.game';
-  const handler = PaystackPop.setup({
-    key: key,
-    email: email,
-    amount: amount*100,
-    currency:'NGN',
-    ref: 'AYO_'+Date.now(),
-    callback: function(resp){
-      const cur=getCredits();
-      setCredits(cur+amount);
-      logLine(`<b style="color:#FFD700">+${amount} CR purchased • ${resp.reference}</b>`);
-    },
-    onClose: function(){}
-  });
-  handler.openIframe();
-};
-
-// --- Stake ---
-let currentStake=100;
-document.querySelectorAll('.stakeBtn').forEach(b=>{
-  b.onclick=()=>{
-    document.querySelectorAll('.stakeBtn').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    currentStake=parseInt(b.dataset.stake,10);
-    renderCredits();
-    if(currentMode!=='local' && roomCode){ pushStateToRoom(); }
-  };
-});
-
-// --- Game State ---
-const START_BOARD = Array(12).fill(4);
-let board = [...START_BOARD];
-let captured=[0,0]; // omu counts
-let turn=0; //0 golden, 1 black
-let gameOver=false;
-let timerSec=180;
-let timerInt=null;
-let currentMode='local'; // local, online
-let roomCode=null;
-let isHost=false;
-let unsubRoom=null;
-let myOnlinePlayer=null; //0/1
-let animLock=false;
-
-function logLine(t){ const l=document.getElementById('log'); const d=document.createElement('div'); d.innerHTML=`[${new Date().toLocaleTimeString()}] ${t}`; l.prepend(d); }
-
-function otherTurn(){ return 1-turn; }
-function ownRange(p){ return p===0?[0,1,2,3,4,5]:[6,7,8,9,10,11]; }
-function oppRange(p){ return ownRange(1-p); }
-function isOpponentRow(idx,p){ return oppRange(p).includes(idx); }
-
-function draw(){
-  const rowTop=document.getElementById('rowTop');
-  const rowBottom=document.getElementById('rowBottom');
-  rowTop.innerHTML=''; rowBottom.innerHTML='';
-  // Top row visual left->right = 11,10,9,8,7,6
-  const topIndices=[11,10,9,8,7,6];
-  const bottomIndices=[0,1,2,3,4,5];
-  topIndices.forEach(i=>{
-    const el=makeHole(i,'black');
-    rowTop.appendChild(el);
-  });
-  bottomIndices.forEach(i=>{
-    const el=makeHole(i,'golden');
-    rowBottom.appendChild(el);
-  });
-  document.getElementById('scoreP0').textContent=captured[0];
-  document.getElementById('scoreP1').textContent=captured[1];
-  document.getElementById('omu0').textContent=captured[0];
-  document.getElementById('omu1').textContent=captured[1];
-  const tag0=document.getElementById('tagP0'), tag1=document.getElementById('tagP1');
-  tag0.classList.toggle('active', turn===0);
-  tag1.classList.toggle('active', turn===1);
-  document.getElementById('turnLabel').textContent=(turn===0?'GOLDEN':'BLACK')+"\'S TURN";
-  // disable if not my turn in online
-  document.querySelectorAll('.hole').forEach(h=>{
-    const idx=parseInt(h.dataset.idx,10);
-    const isOwn = ownRange(turn).includes(idx) && board[idx]>0;
-    h.classList.toggle('selectable', isOwn && !gameOver && !animLock && (currentMode==='local' || myOnlinePlayer===turn));
-    h.classList.toggle('disabled', !isOwn || gameOver || animLock || (currentMode!=='local' && myOnlinePlayer!==turn));
-  });
-  // auto flip: if myOnlinePlayer==1, flip board visually so golden is top? Requirement "auto flip for black player where relevant"
+function setStake(s){ stake=s; pot=s*2; updateWallet(); document.getElementById('msg').innerText=`Stake ${s} — Pot ${pot} — Winner gets ${Math.floor(pot*0.9)}`; }
+function toggleSound(){ soundOn=!soundOn; document.getElementById('sndTxt').innerText=soundOn?'On':'Off'; }
+function beep(freq=880,ms=120){ if(!soundOn) return; try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain(); o.frequency.value=freq; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.2,ctx.currentTime); o.start(); setTimeout(()=>{o.stop(); ctx.close();},ms);}catch(e){} }
+function startLocal(){ board=[4,4,4,4,4,4,4,4,4,4,4,4]; stores=[0,0]; turn=1; playing=true; animating=false; roomCode=null; if(unsub){try{unsub();}catch{} unsub=null;} document.getElementById('roomBadge').innerText='Local 2P — Ready'; document.getElementById('msg').innerText='🌟 LOCAL 2P STARTED — Golden (bottom) plays now'; updateWallet(); render(); }
+function render(){
   const wrap=document.getElementById('boardWrap');
-  if(currentMode!=='local' && myOnlinePlayer===1){ wrap.classList.add('flip'); } else { wrap.classList.remove('flip'); }
+  let blackSeedsHTML = stores[0]>0 ? Array.from({length:Math.min(stores[0],40)}).map(()=>`<span class="seed black"></span>`).join('') : '<span style="opacity:.5;font-size:14px">Empty</span>';
+  let goldSeedsHTML = stores[1]>0 ? Array.from({length:Math.min(stores[1],40)}).map(()=>`<span class="seed gold"></span>`).join('') : '<span style="opacity:.5;font-size:14px">Empty</span>';
+  let blackRow=''; for(let i=0;i<6;i++){ let cnt=board[i]; let seeds=''; for(let s=0;s<cnt;s++) seeds+=`<span class="seed black"></span>`; let active = turn===0 ? ' my-turn' : ''; blackRow+=`<div id="hole-${i}" class="hole black${active}" onclick="playHole(${i})"><div style="display:flex;flex-wrap:wrap;justify-content:center;max-width:64px">${seeds}</div><div class="num">${cnt}</div></div>`; }
+  let goldRow=''; for(let i=6;i<12;i++){ let cnt=board[i]; let seeds=''; for(let s=0;s<cnt;s++) seeds+=`<span class="seed gold"></span>`; let active = turn===1 ? ' my-turn' : ''; goldRow+=`<div id="hole-${i}" class="hole golden${active}" onclick="playHole(${i})"><div style="display:flex;flex-wrap:wrap;justify-content:center;max-width:64px">${seeds}</div><div class="num">${cnt}</div></div>`; }
+  wrap.innerHTML=`<div class="stores" id="store-black"><div class="store-label">⬛ BLACK</div><div class="store-seeds">${blackSeedsHTML}</div><div class="store-count" style="color:#fff">${stores[0]}</div></div><div class="rows"><div class="pit-row">${blackRow}</div><div class="pit-row">${goldRow}</div></div><div class="stores" id="store-gold" style="border-color:#fff"><div class="store-label" style="color:#FFD700">🟨 GOLDEN</div><div class="store-seeds">${goldSeedsHTML}</div><div class="store-count" style="color:#FFD700">${stores[1]}</div></div>`;
+  updateWallet();
 }
-function makeHole(idx, type){
-  const div=document.createElement('div');
-  div.className='hole '+type;
-  div.dataset.idx=idx;
-  const count=board[idx];
-  for(let s=0;s<count;s++){
-    const seed=document.createElement('span');
-    seed.className='seed '+(type==='golden'?'goldSeed':'blackSeed');
-    div.appendChild(seed);
-  }
-  const badge=document.createElement('span');
-  badge.style.position='absolute'; badge.style.bottom='-2px'; badge.style.right='-2px';
-  badge.style.background='#FFD700'; badge.style.color='#000'; badge.style.borderRadius='50%';
-  badge.style.width='18px'; badge.style.height='18px'; badge.style.display='flex'; badge.style.alignItems='center'; badge.style.justifyContent='center';
-  badge.style.fontSize='11px'; badge.style.fontWeight='900'; badge.textContent=count;
-  badge.style.boxShadow='0 0 6px rgba(0,0,0,.8)';
-  div.appendChild(badge);
-  div.onclick=()=>onHoleClick(idx);
-  return div;
-}
-
-async function onHoleClick(idx){
-  if(gameOver || animLock) return;
-  if(!ownRange(turn).includes(idx)){ setMsg('Pick your own side!'); return; }
-  if(board[idx]===0){ setMsg('Empty hole'); return; }
-  if(currentMode!=='local' && myOnlinePlayer!==turn){ setMsg('Not your turn'); return; }
-  await doSow(idx);
-}
-function setMsg(t){ document.getElementById('msg').textContent=t; }
-
-async function doSow(startIdx){
-  animLock=true;
-  const player=turn;
-  let seeds=board[startIdx];
-  board[startIdx]=0;
-  let pos=startIdx;
-  // animate quickly
-  draw();
-  await sleep(180);
-  while(seeds>0){
-    pos=(pos+1)%12;
-    // Oware rule: skip start if 12+ seeds? Classic rule: don't fill start if you started with 12+? Simplify: if seeds>11 and pos==startIdx skip
-    // but basic: allow.
-    if(seeds===12 && pos===startIdx){ pos=(pos+1)%12; } // skip original if exactly 12
-    board[pos]++;
-    seeds--;
-    if(seeds%3===0){ /* tiny delay for visual */ }
-  }
-  // visual
-  draw();
-  await sleep(250);
-  // capture
-  let capturedNow=0;
-  let lastPos=pos;
-  if(isOpponentRow(lastPos, player)){
-    let check=lastPos;
-    while(true){
-      if(!isOpponentRow(check, player)) break;
-      const cnt=board[check];
-      if(cnt===2 || cnt===3){
-        capturedNow+=cnt;
-        board[check]=0;
-        logLine(`Capture ${cnt} from hole ${check} by ${player===0?'GOLDEN':'BLACK'}`);
-      }else break;
-      check=(check-1+12)%12;
-      // avoid infinite: only opponent row contiguous captured
-      if(!isOpponentRow(check, player)) break;
-      // stop if not capturing
+async function playHole(idx){
+  if(animating) return;
+  if(!playing){ startLocal(); }
+  if(board[idx]===0){ beep(220,120); document.getElementById('msg').innerText='Empty hole! Choose another.'; return; }
+  let isGoldenSide = idx>=6;
+  if(turn===1 && !isGoldenSide){ document.getElementById('msg').innerText='⚠️ Golden turn — click BOTTOM row'; beep(220,180); flashHole(idx); return; }
+  if(turn===0 && isGoldenSide){ document.getElementById('msg').innerText='⚠️ Black turn — click TOP row'; beep(220,180); flashHole(idx); return; }
+  animating=true; let seeds=board[idx]; board[idx]=0; render(); beep(600,80); let cur=idx;
+  for(let i=0;i<seeds;i++){ cur=(cur+1)%12; board[cur]++; await sleep(180); let el=document.getElementById('hole-'+cur); if(el){ el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),500); } beep(700+cur*15,70); render(); }
+  let opp = turn===1 ? [0,1,2,3,4,5] : [6,7,8,9,10,11];
+  if(opp.includes(cur) && (board[cur]===2 || board[cur]===3)){
+    let cap=0; let c=cur; let caps=[];
+    while(opp.includes(c) && (board[c]===2 || board[c]===3)){ cap+=board[c]; caps.push(c); board[c]=0; c=(c-1+12)%12; }
+    stores[turn]+=cap; caps.forEach(i=>flashHole(i)); beep(1200,220); beep(1400,220);
+    document.getElementById('msg').innerText=`💥 CAPTURE! ${cap} seeds to ${(turn===1?'Golden':'Black')}!`;
+    await sleep(400); render();
+  } else { document.getElementById('msg').innerText=`${turn===1?'Golden':'Black'} sowed ${seeds} — next turn`; }
+  let goldEmpty = board.slice(6,12).every(v=>v===0); let blackEmpty = board.slice(0,6).every(v=>v===0);
+  if(goldEmpty || blackEmpty){
+    let rem=0; board.forEach(v=>rem+=v); let receiver = goldEmpty ? 0 : 1; if(blackEmpty) receiver=1; if(goldEmpty && blackEmpty) receiver=turn;
+    if(rem>0){ stores[receiver]+=rem; board=[0,0,0,0,0,0,0,0,0,0,0,0]; }
+    let winIdx = stores[1]>stores[0]?1:0; let winName = winIdx===1?'GOLDEN':'BLACK';
+    if(stores[winIdx]>=13 || goldEmpty || blackEmpty){
+      if(roomCode==null){ credits+=Math.floor(pot*0.9); saveCredits(); }
+      beep(1600,400);
+      document.getElementById('msg').innerHTML=`🏆 <b style="font-size:26px">${winName} WINS!</b> Gold ${stores[1]} - Black ${stores[0]} — +${Math.floor(pot*0.9)}! Restart to play.`;
+      render(); updateWallet(); playing=false; animating=false; if(roomCode && window._fb) pushRoom(true); return;
     }
   }
-  if(capturedNow>0){
-    captured[player]+=capturedNow;
-    setMsg(`${player===0?'GOLDEN':'BLACK'} captures ${capturedNow}!`);
-  }else{
-    setMsg(`${player===0?'GOLDEN':'BLACK'} sowed, no capture`);
-  }
-  draw();
-  // check win
-  if(checkWin()){
-    animLock=false;
-    return;
-  }
-  // turn switch, but if opponent has no moves, check
-  let next=otherTurn();
-  if(ownRange(next).every(i=>board[i]===0)){
-    // opponent can't move, if current player can feed? For simplicity, game ends, remaining goes to mover
-    // collect remaining
-    let remain=0;
-    board.forEach((v,i)=>{ if(v>0){ remain+=v; } });
-    // if current player has moves maybe continue, but Oware ends
-    if(remain>0){
-      logLine(`Opponent starved, board remaining ${remain} cleared`);
-      // winner gets remaining? Actually game ends with capture counts + board? For simplicity end
-    }
-    gameOver=true;
-    finishGame();
-  }else{
-    turn=next;
-    draw();
-  }
-  animLock=false;
-  if(currentMode!=='local' && roomCode){
-    pushStateToRoom();
-  }
-  startTimerIfNeeded();
+  turn = turn===1?0:1; document.getElementById('msg').innerText += ` — Next: ${turn===1?'GOLDEN (bottom)':'BLACK (top)'} turn`;
+  animating=false; render(); if(roomCode && window._fb) pushRoom(false);
 }
-
-function checkWin(){
-  if(captured[0]>24 || captured[1]>24 || (captured[0]+captured[1]===48)){
-    gameOver=true;
-    finishGame();
-    return true;
-  }
-  // also if board empty
-  if(board.every(v=>v===0)){
-    gameOver=true;
-    finishGame();
-    return true;
-  }
-  return false;
-}
-
-function finishGame(){
-  clearInterval(timerInt);
-  let winner=null;
-  if(captured[0]>captured[1]) winner=0;
-  else if(captured[1]>captured[0]) winner=1;
-  else winner=-1;
-  const pot=currentStake*2;
-  let payoutMsg='';
-  if(winner!==-1 && currentMode!=='local'){
-    const winAmount=Math.floor(pot*0.9);
-    const cur=getCredits();
-    if(myOnlinePlayer===winner){
-      setCredits(cur+winAmount);
-      payoutMsg=`You win ${winAmount} CR (90% of pot ${pot})`;
-    }else if(myOnlinePlayer!==null){
-      // loser already deducted? Deduct on create? We deduct on start
-      payoutMsg=`Pot ${pot} • Winner gets ${winAmount} CR`;
-    }
-  }else if(winner!==-1){
-    payoutMsg=`Pot ${pot} • Winner share 90% = ${Math.floor(pot*0.9)}`;
-  }
-  document.getElementById('winTitle').textContent = winner===-1?'DRAW!':(winner===0?'GOLDEN WINS!':'BLACK WINS!');
-  document.getElementById('winSub').textContent = `Score ${captured[0]} - ${captured[1]} • Board ${board.reduce((a,b)=>a+b,0)} left`;
-  document.getElementById('potResult').textContent = payoutMsg || `Golden ${captured[0]} | Black ${captured[1]}`;
-  document.getElementById('winModal').classList.add('open');
-  logLine(`Game over • ${document.getElementById('winTitle').textContent}`);
-}
-
+function flashHole(i){ let el=document.getElementById('hole-'+i); if(el){ el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),700); } }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function startTimerIfNeeded(){
-  if(timerInt) return;
-  timerSec=180;
-  updateTimerView();
-  timerInt=setInterval(()=>{
-    timerSec--;
-    updateTimerView();
-    if(timerSec<=0){
-      clearInterval(timerInt); timerInt=null;
-      gameOver=true; finishGame();
-    }
-  },1000);
-}
-function updateTimerView(){
-  const m=String(Math.floor(timerSec/60)).padStart(2,'0');
-  const s=String(timerSec%60).padStart(2,'0');
-  document.getElementById('gameTimer').textContent=`${m}:${s}`;
-}
-function resetGame(){
-  board=[...START_BOARD];
-  captured=[0,0];
-  turn=0;
-  gameOver=false;
-  animLock=false;
-  timerSec=180;
-  clearInterval(timerInt); timerInt=null;
-  document.getElementById('winModal').classList.remove('open');
-  draw();
-  setMsg('New game • Golden starts');
-  logLine('Board reset');
-  if(currentMode!=='local' && roomCode){
-    pushStateToRoom(true);
-  }else{
-    startTimerIfNeeded();
-  }
-}
-window.resetGame=resetGame;
-window.closeWin=()=>document.getElementById('winModal').classList.remove('open');
-window.closeModal=()=>document.getElementById('joinModal').classList.remove('open');
-
-document.getElementById('modeLocal').onclick=()=>{
-  currentMode='local';
-  myOnlinePlayer=null;
-  if(unsubRoom){ unsubRoom(); unsubRoom=null; }
-  roomCode=null;
-  document.getElementById('roomCodeView').textContent='';
-  document.getElementById('leaveRoom').style.display='none';
-  resetGame();
-  logLine('Mode: Local 2P');
-};
-
-// --- Firebase Online ---
-function genCode(){ return 'AYO-'+Math.random().toString(36).substring(2,6).toUpperCase(); }
-
 async function createRoom(){
-  if(!user){ alert('Sign in with Google first to create room'); return; }
-  const credits=getCredits();
-  if(credits<currentStake){ alert('Not enough credits'); return; }
-  setCredits(credits-currentStake);
-  const code=genCode();
-  roomCode=code; isHost=true; currentMode='online'; myOnlinePlayer=0;
-  const ref=doc(db,'ayo_rooms',code);
-  await setDoc(ref,{
-    code,
-    hostId:user.uid,
-    hostName:user.displayName||user.email,
-    stake:currentStake,
-    pot:currentStake*2,
-    board:[...START_BOARD],
-    captured:[0,0],
-    turn:0,
-    createdAt:serverTimestamp(),
-    status:'waiting',
-    guestId:null,
-    moves:[]
-  });
-  document.getElementById('roomCodeView').textContent=code+' • HOST • stake '+currentStake;
-  document.getElementById('leaveRoom').style.display='inline';
-  listenRoom(code);
-  resetGame();
-  logLine(`Room created ${code} • Waiting for BLACK`);
+  if(!window._fb || !window._fb.auth.currentUser){ alert('Sign Gmail first for online. Local works now!'); startLocal(); return; }
+  if(credits<stake){ alert('Need '+stake+' credits. Buy credits.'); return; }
+  roomCode='AYO-'+Math.floor(1000+Math.random()*9000);
+  try{ const {doc,setDoc,db,serverTimestamp}=window._fb; await setDoc(doc(db,'ayo_rooms',roomCode),{board,stores,turn,stake,pot,host:window._fb.auth.currentUser.uid,status:'playing',createdAt:serverTimestamp()}); credits-=stake; saveCredits(); updateWallet(); document.getElementById('roomBadge').innerText='Room '+roomCode+' (You Golden Host)'; listen(roomCode); document.getElementById('msg').innerText=`Room ${roomCode} created — Share code. You Golden bottom.`; }catch(e){ alert('Create failed: '+e.message); }
 }
-
-async function joinRoom(codeInput){
-  let code=(codeInput||'').trim().toUpperCase();
-  if(!code.startsWith('AYO-')) code='AYO-'+code.replace('AYO-','');
-  if(code.length<6){ alert('Invalid code'); return; }
-  if(!user){ alert('Sign in with Google'); return; }
-  const credits=getCredits();
-  const ref=doc(db,'ayo_rooms',code);
-  const snap=await getDoc(ref);
-  if(!snap.exists()){ alert('Room not found'); return; }
-  const data=snap.data();
-  const need=data.stake||currentStake;
-  if(credits<need){ alert('Not enough credits for this room stake '+need); return; }
-  if(data.guestId && data.guestId!==user.uid){ alert('Room full'); return; }
-  if(data.hostId===user.uid){ // rejoin as host
-    roomCode=code; isHost=true; myOnlinePlayer=0; currentMode='online';
-    document.getElementById('roomCodeView').textContent=code+' • HOST';
-    listenRoom(code);
-    document.getElementById('joinModal').classList.remove('open');
-    return;
-  }
-  setCredits(credits-need);
-  await updateDoc(ref,{ guestId:user.uid, guestName:user.displayName||user.email, status:'playing', joinedAt:serverTimestamp() });
-  roomCode=code; isHost=false; myOnlinePlayer=1; currentMode='online';
-  document.getElementById('roomCodeView').textContent=code+' • BLACK • stake '+need;
-  currentStake=need;
-  document.getElementById('leaveRoom').style.display='inline';
-  listenRoom(code);
-  document.getElementById('joinModal').classList.remove('open');
-  logLine(`Joined room ${code} as BLACK`);
+async function joinRoom(){
+  let code=document.getElementById('roomInput').value.trim().toUpperCase(); if(!code) return alert('Enter code like AYO-1234');
+  if(!window._fb || !window._fb.auth.currentUser) return alert('Sign Gmail first to join online');
+  if(credits<stake){ return alert('Need '+stake+' credits'); } roomCode=code;
+  try{ const {doc,getDoc,db}=window._fb; let snap=await getDoc(doc(db,'ayo_rooms',roomCode)); if(!snap.exists()) return alert('Room not found'); let d=snap.data(); board=d.board||board; stores=d.stores||stores; turn=d.turn??turn; document.getElementById('roomBadge').innerText='Room '+roomCode+' (You Black)'; render(); listen(roomCode);}catch(e){ alert('Join failed: '+e.message); }
 }
-
-function listenRoom(code){
-  if(unsubRoom) unsubRoom();
-  const ref=doc(db,'ayo_rooms',code);
-  unsubRoom=onSnapshot(ref, snap=>{
-    if(!snap.exists()){ logLine('Room deleted'); return; }
-    const d=snap.data();
-    // update local state from room unless animating
-    if(!animLock){
-      board=d.board||[...START_BOARD];
-      captured=d.captured||[0,0];
-      turn=d.turn||0;
-      currentStake=d.stake||currentStake;
-      draw();
-      if(d.status==='playing'){
-        setMsg(d.guestId?`Playing • ${turn===myOnlinePlayer?'YOUR TURN':'OPPONENT'} • ${d.code}`:'Waiting for opponent...');
-      }
-    }
-    renderCredits();
-  });
+function listen(code){ if(unsub) try{unsub();}catch{} const {doc,onSnapshot,db}=window._fb; unsub=onSnapshot(doc(db,'ayo_rooms',code),(s)=>{ if(!s.exists()) return; let d=s.data(); board=d.board||board; stores=d.stores||stores; turn=d.turn??turn; render(); updateWallet(); }); }
+async function pushRoom(final){ if(!roomCode||!window._fb) return; try{ const {doc,updateDoc,db}=window._fb; await updateDoc(doc(db,'ayo_rooms',roomCode),{board,stores,turn,status: final?'finished':'playing'}); }catch(e){} }
+function buyCredits(amount){
+  if(typeof PaystackPop==='undefined'){ alert('Paystack loading — try again in 2 sec'); return; }
+  let email = (window._fb && window._fb.auth.currentUser && window._fb.auth.currentUser.email) || 'player@ayo.game';
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_KEY, email: email, amount: amount*100, currency: 'NGN',
+    ref: 'AYO_'+Date.now()+'_'+Math.floor(Math.random()*9999),
+    callback: function(res){ credits+=amount; saveCredits(); updateWallet(); document.getElementById('msg').innerText=`✅ Payment success ${res.reference} — +${amount} credits! Current ${credits}`; beep(1800,300); },
+    onClose: function(){ document.getElementById('msg').innerText='Payment window closed'; }
+  }); handler.openIframe();
 }
-
-function pushStateToRoom(isReset=false){
-  if(!roomCode) return;
-  const ref=doc(db,'ayo_rooms',roomCode);
-  const payload={
-    board: board,
-    captured: captured,
-    turn: turn,
-    stake: currentStake,
-    status: gameOver?'finished':'playing',
-    updatedAt: serverTimestamp()
-  };
-  updateDoc(ref,payload).catch(e=>console.log('push fail',e));
-}
-
-document.getElementById('modeCreate').onclick=createRoom;
-document.getElementById('modeJoin').onclick=()=>{ document.getElementById('joinModal').classList.add('open'); };
-document.getElementById('joinConfirm').onclick=()=>{ const v=document.getElementById('joinInput').value; joinRoom(v); };
-document.getElementById('leaveRoom').onclick=async()=>{
-  if(unsubRoom) unsubRoom();
-  roomCode=null; currentMode='local'; myOnlinePlayer=null; isHost=false;
-  document.getElementById('roomCodeView').textContent='';
-  document.getElementById('leaveRoom').style.display='none';
-  resetGame();
-  logLine('Left room • Local mode');
-};
-
-// init
-draw();
-startTimerIfNeeded();
-logLine('AYO OLOPON loaded • Black & Golden • Paystack Live');
+setStake(100); render(); updateWallet();
+window.setStake=setStake; window.startLocal=startLocal; window.playHole=playHole; window.createRoom=createRoom; window.joinRoom=joinRoom; window.buyCredits=buyCredits; window.toggleSound=toggleSound;
 </script>
 </body>
 </html>

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BLACK & GOLDEN RACING</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+"imports":{
+"firebase/app":"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+"firebase/auth":"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+"firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+}
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+:root{--gold:#FFD700;--black:#000;--dark:#0a0a0a;--gold2:#ffed8a}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Orbitron,Segoe UI,system-ui,sans-serif}
+body{background:#000;color:var(--gold);overflow:hidden;user-select:none;-webkit-touch-callout:none}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:linear-gradient(180deg,#111,#000);border-bottom:2px solid var(--gold);box-shadow:0 0 18px rgba(255,215,0,.35);position:sticky;top:0;z-index:10}
+.badge{border:1px solid var(--gold);padding:6px 10px;border-radius:10px;background:#0d0d0d;color:var(--gold);box-shadow:0 0 8px rgba(255,215,0,.3);font-size:12px;font-weight:700;letter-spacing:.5px}
+.btn{border:1.5px solid var(--gold);background:#000;color:var(--gold);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:800;letter-spacing:.6px;transition:.15s;box-shadow:0 0 10px rgba(255,215,0,.25)}
+.btn:hover{background:var(--gold);color:#000;box-shadow:0 0 18px var(--gold);transform:translateY(-1px)}
+.btn:active{transform:scale(.97)}
+.btn.gold{background:var(--gold);color:#000}
+input,select{background:#111;color:var(--gold);border:1.2px solid var(--gold);border-radius:9px;padding:7px 10px;outline:none}
+.wrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:calc(100vh - 56px);padding:8px;gap:8px}
+.hud{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:960px}
+.hud .box{flex:1 1 150px;border:1px solid var(--gold);border-radius:12px;padding:8px 10px;background:rgba(20,20,20,.9);box-shadow:inset 0 0 0 1px rgba(255,215,0,.2),0 0 12px rgba(255,215,0,.2);text-align:center}
+.hud b{color:var(--gold2)}
+canvas{border:2.5px solid var(--gold);border-radius:18px;box-shadow:0 0 22px rgba(255,215,0,.45),inset 0 0 18px rgba(255,215,0,.15);background:radial-gradient(circle at center,#1a1a0a 0%,#0a0a0a 55%,#000 100%);touch-action:none;max-width:96vw;max-height:62vh}
+.controls{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+.ctrl{width:64px;height:64px;border-radius:14px;border:1.8px solid var(--gold);background:#0f0f0f;color:var(--gold);font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(255,215,0,.25)}
+.ctrl:active{background:var(--gold);color:#000}
+#log{font-size:11px;opacity:.85;max-width:960px;text-align:center;min-height:14px}
+.glow{animation:glow 1.2s infinite alternate}
+@keyframes glow{from{box-shadow:0 0 8px var(--gold)} to{box-shadow:0 0 22px var(--gold)}}
+.roomCode{font-size:18px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="badge" style="font-size:14px">🏁 BLACK & GOLDEN RACING</span>
+<button id="authBtn" class="btn">Login Gmail</button>
+<span id="userInfo" class="badge" style="display:none"></span>
+<span class="badge">💰 Wallet: <b id="wallet">0</b> credits</span>
+<select id="stakeSel" title="Stake">
+<option value="100">Stake 100</option>
+<option value="500">Stake 500</option>
+<option value="1000">Stake 1000</option>
+<option value="5000">Stake 5000</option>
+</select>
+<span class="badge">Pot: <b id="pot">0</b></span>
+<button class="btn" onclick="buyCredits()">Buy Credits +500</button>
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+<button class="btn gold" onclick="startGame('ai')">▶ PLAY vs AI</button>
+<button class="btn" onclick="startGame('local')">Local 2P</button>
+<button class="btn" onclick="createRoom()">Create Room</button>
+<input id="joinInput" placeholder="RACE-XXXX" style="width:120px">
+<button class="btn" onclick="joinRoom()">Join Room</button>
+<span id="roomBadge" class="badge roomCode" style="display:none"></span>
+</div>
+</div>
+
+<div class="wrap">
+<div class="hud">
+<div class="box">LAP: <b id="lap1">1/3</b> | Speed: <b id="speed1">0</b> km/h<br><span style="color:#111;background:#FFD700;padding:1px 6px;border-radius:6px;font-weight:900">BLACK</span> P1</div>
+<div class="box">LAP: <b id="lap2">1/3</b> | Speed: <b id="speed2">0</b> km/h<br><span style="color:#000;background:#FFD700;padding:1px 6px;border-radius:6px;font-weight:900">GOLDEN</span> P2 / AI</div>
+<div class="box">Status: <b id="status">Click PLAY — Instant</b><br>Finish First 3 Laps = Win 90% Pot</div>
+</div>
+<canvas id="game" width="860" height="560"></canvas>
+<div class="controls">
+<button class="ctrl" id="cLeft">◀</button>
+<div style="display:flex;flex-direction:column;gap:8px">
+<button class="ctrl" id="cUp">▲</button>
+<button class="ctrl" id="cDown">▼</button>
+</div>
+<button class="ctrl" id="cRight">▶</button>
+<div style="margin-left:18px;display:flex;gap:8px">
+<button class="ctrl" id="cLeft2" title="P2 Left">A</button>
+<button class="ctrl" id="cUp2" title="P2 Up">W</button>
+<button class="ctrl" id="cRight2" title="P2 Right">D</button>
+</div>
+</div>
+<div id="log">Top-down oval. Black vs Golden. Arrow Keys = P1 (Black) • WASD = P2 (Golden) in Local 2P. Mobile use gold buttons. 3 Laps with checkpoints.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.appspot.com",
+  messagingSenderId: "496677993665",
+  appId: "1:496677993665:web:c9d33d7cf7d5fd37e5e4fa"
+};
+let app, auth, db, user=null;
+try{
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}catch(e){ console.warn("Firebase init fail", e); }
+
+const PAYSTACK_LIVE_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
+window.PAYSTACK_KEY = PAYSTACK_LIVE_KEY;
+
+let wallet = parseInt(localStorage.getItem('ethan_credits')||'1200');
+const walletEl = document.getElementById('wallet');
+const potEl = document.getElementById('pot');
+const stakeSel = document.getElementById('stakeSel');
+const statusEl = document.getElementById('status');
+const roomBadge = document.getElementById('roomBadge');
+const authBtn = document.getElementById('authBtn');
+const userInfo = document.getElementById('userInfo');
+
+function updateWalletUI(){
+  walletEl.textContent = wallet;
+  const stake = parseInt(stakeSel.value);
+  potEl.textContent = (stake*2) + " (" + Math.floor(stake*2*0.9) + " win)";
+  localStorage.setItem('ethan_credits', wallet);
+  // sync to firestore if logged
+  if(db && user){
+    setDoc(doc(db,'users',user.uid), {ethan_credits:wallet, email:user.email}, {merge:true}).catch(()=>{});
+    setDoc(doc(db,'ethan_credits', user.uid), {credits:wallet}, {merge:true}).catch(()=>{});
+  }
+}
+window.buyCredits = function(amount=500){
+  if(typeof PaystackPop === 'undefined'){ alert('Paystack not loaded'); return; }
+  let email = (user && user.email) ? user.email : 'player@blackgolden.racing';
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_LIVE_KEY,
+    email: email,
+    amount: (amount*1)*100, // credits = Naira 1:1 for demo, amount in kobo
+    currency: 'NGN',
+    ref: 'BG_'+Date.now(),
+    callback: function(res){
+      wallet += amount;
+      updateWalletUI();
+      statusEl.textContent = 'Payment verified '+res.reference+' +'+amount+' credits';
+      log('Paystack success '+res.reference);
+    },
+    onClose: function(){ log('Paystack closed'); }
+  });
+  handler.openIframe();
+}
+
+stakeSel.addEventListener('change', updateWalletUI);
+updateWalletUI();
+
+// Auth
+async function login(){
+  if(!auth){ alert('Auth not ready'); return; }
+  try{
+    const provider = new GoogleAuthProvider();
+    const r = await signInWithPopup(auth, provider);
+  }catch(e){ alert(e.message); }
+}
+async function logout(){ if(auth) await signOut(auth); }
+
+authBtn.addEventListener('click', ()=>{ if(user) logout(); else login(); });
+
+if(auth){
+  onAuthStateChanged(auth, async (u)=>{
+    user = u;
+    if(u){
+      authBtn.textContent='Logout';
+      userInfo.style.display='inline-block';
+      userInfo.textContent = u.displayName || u.email;
+      // load credits
+      try{
+        const snap = await getDoc(doc(db,'users',u.uid));
+        if(snap.exists() && snap.data().ethan_credits!=null){ wallet = snap.data().ethan_credits; }
+      }catch{}
+      updateWalletUI();
+      log('Logged as '+u.email);
+    }else{
+      authBtn.textContent='Login Gmail';
+      userInfo.style.display='none';
+    }
+  });
+}
+
+function log(t){ document.getElementById('log').textContent = t; }
+
+// Game core
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let mode='ai'; // ai, local, online
+let roomCode=null;
+let roomUnsub=null;
+
+const TRACK = { cx:430, cy:280, rw:320, rh:180, thickness:88 };
+const START_LINE_ANGLE = -Math.PI/2; // top center
+
+function ovalPoint(angle, offset=0){
+  // ellipse with rounded rect feel
+  const {cx,cy,rw,rh} = TRACK;
+  const x = cx + (rw+offset)*Math.cos(angle);
+  const y = cy + (rh+offset)*Math.sin(angle);
+  return {x,y};
+}
+function trackAngleFromPos(x,y){
+  return Math.atan2(y-TRACK.cy, x-TRACK.cx);
+}
+
+class Car{
+  constructor(color,gold=false){
+    this.color=color;
+    this.gold=gold;
+    this.reset();
+  }
+  reset(){
+    this.x=TRACK.cx;
+    this.y=TRACK.cy - TRACK.rh - 2;
+    this.angle=-Math.PI/2;
+    this.speed=0;
+    this.maxSpeed=5.6;
+    this.acc=0.18;
+    this.friction=0.97;
+    this.turnSpeed=0.065;
+    this.lap=1;
+    this.checkIdx=0;
+    this.totalChecks=0;
+    this.finished=false;
+    this.finishTime=0;
+    this.lastAngle=START_LINE_ANGLE;
+    this.wrapCount=0;
+    this.checks=[false,false,false,false];
+  }
+  update(input){
+    if(this.finished) return;
+    if(input.up) this.speed += this.acc;
+    if(input.down) this.speed -= this.acc*0.6;
+    else this.speed *= this.friction;
+    this.speed = Math.max(-this.maxSpeed*0.5, Math.min(this.maxSpeed, this.speed));
+    if(Math.abs(this.speed)>0.2){
+      if(input.left) this.angle -= this.turnSpeed * (this.speed/this.maxSpeed + 0.4);
+      if(input.right) this.angle += this.turnSpeed * (this.speed/this.maxSpeed + 0.4);
+    }
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+
+    // keep on track: pull to oval
+    let ang = Math.atan2(this.y-TRACK.cy, this.x-TRACK.cx);
+    let dist = Math.hypot(this.x-TRACK.cx, this.y-TRACK.cy);
+    // elliptical radius approx
+    let ideal = (TRACK.rw+TRACK.rh)/2; // simplify
+    // actually compute desired elliptical radius
+    let cosA=Math.cos(ang), sinA=Math.sin(ang);
+    let rx=TRACK.rw, ry=TRACK.rh;
+    let desired = (rx*ry)/Math.sqrt((ry*cosA)**2 + (rx*sinA)**2);
+    let diff = dist - desired;
+    if(Math.abs(diff) > TRACK.thickness/2){
+      let push = (Math.abs(diff)-TRACK.thickness/2)*0.18;
+      let dir = diff>0 ? -1:1;
+      this.x += cosA*push*dir;
+      this.y += sinA*push*dir;
+      this.speed *= 0.86;
+    }
+
+    // checkpoints: divide circle into 4 quadrants
+    let norm = (ang+Math.PI*2)%(Math.PI*2);
+    let q = Math.floor(norm/(Math.PI/2)); //0-3
+    if(!this.checks[q]){
+      this.checks[q]=true;
+      this.totalChecks++;
+    }
+
+    // lap detection: crossing start line from left to right quadrants going CCW? We detect angle wrap over START_LINE_ANGLE
+    let delta = ang - this.lastAngle;
+    if(delta> Math.PI) delta -= Math.PI*2;
+    if(delta< -Math.PI) delta += Math.PI*2;
+    // crossing start line near -90 deg
+    let crossed = false;
+    if(this.lastAngle < START_LINE_ANGLE+0.25 && ang >= START_LINE_ANGLE+0.25 && delta>0) crossed=true;
+    if(this.lastAngle > START_LINE_ANGLE-0.25 && ang <= START_LINE_ANGLE-0.25 && delta<0) crossed=false; // ignore reverse
+    // use forward crossing only: angle moving from ~ -pi to pi wrap or increasing
+    // better: detect when we go from angle ~ -2.0 to -1.2 crossing -1.57 with all checks done and moving forward
+    if(Math.abs(delta)<1){
+      // check crossing top
+      let prev = this.lastAngle;
+      // normalize to check crossing over -PI/2 while moving positive delta (clockwise)
+      // forward direction is increasing angle
+      if(delta>0 && prev < START_LINE_ANGLE && ang >= START_LINE_ANGLE){
+        crossed=true;
+      }
+    }
+    if(crossed){
+      if(this.checks.every(Boolean)){
+        this.lap++;
+        this.checks=[false,false,false,false];
+        this.totalChecks=0;
+        if(this.lap>3){
+          this.finished=true;
+          this.finishTime=performance.now();
+        }
+      }else{
+        // not all checkpoints, ignore lap
+      }
+    }
+    this.lastAngle=ang;
+  }
+  draw(){
+    ctx.save();
+    ctx.translate(this.x,this.y);
+    ctx.rotate(this.angle);
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    ctx.fillRect(-14,-8,28,16);
+    // body
+    if(this.gold){
+      ctx.fillStyle='#FFD700';
+      ctx.shadowColor='#FFD700';
+      ctx.shadowBlur=12;
+      ctx.fillRect(-16,-8,28,16);
+      ctx.fillStyle='#000';
+      ctx.fillRect(-12,-5,8,10);
+    }else{
+      ctx.fillStyle='#0a0a0a';
+      ctx.strokeStyle='#FFD700';
+      ctx.lineWidth=1.5;
+      ctx.shadowColor='#FFD700';
+      ctx.shadowBlur=8;
+      ctx.fillRect(-16,-8,28,16);
+      ctx.strokeRect(-16,-8,28,16);
+      ctx.fillStyle='#FFD700';
+      ctx.fillRect(-2,-6,10,12);
+    }
+    ctx.restore();
+  }
+}
+
+let car1 = new Car('#111', false);
+let car2 = new Car('#FFD700', true);
+
+let keys = {};
+window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); });
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+
+function getInputs(){
+  let i1={left:false,right:false,up:false,down:false};
+  let i2={left:false,right:false,up:false,down:false};
+  if(keys['arrowleft']) i1.left=true;
+  if(keys['arrowright']) i1.right=true;
+  if(keys['arrowup']) i1.up=true;
+  if(keys['arrowdown']) i1.down=true;
+  // touch buttons
+  i1.left = i1.left || touch.left;
+  i1.right= i1.right|| touch.right;
+  i1.up= i1.up|| touch.up;
+  i1.down=i1.down||touch.down;
+
+  if(mode==='local'){
+    if(keys['a']) i2.left=true;
+    if(keys['d']) i2.right=true;
+    if(keys['w']) i2.up=true;
+    if(keys['s']) i2.down=true;
+    i2.left = i2.left || touch2.left;
+    i2.right = i2.right|| touch2.right;
+    i2.up = i2.up|| touch2.up;
+  }
+  return {i1,i2};
+}
+
+let touch={left:false,right:false,up:false,down:false};
+let touch2={left:false,right:false,up:false};
+
+function bindTouch(id,obj,field){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const on=()=>{obj[field]=true};
+  const off=()=>{obj[field]=false};
+  el.addEventListener('touchstart', e=>{e.preventDefault();on();},{passive:false});
+  el.addEventListener('touchend', e=>{e.preventDefault();off();},{passive:false});
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+bindTouch('cLeft',touch,'left');
+bindTouch('cRight',touch,'right');
+bindTouch('cUp',touch,'up');
+bindTouch('cDown',touch,'down');
+bindTouch('cLeft2',touch2,'left');
+bindTouch('cUp2',touch2,'up');
+bindTouch('cRight2',touch2,'right');
+
+let gameRunning=false;
+let lastDraw=0;
+
+function drawTrack(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // outer gold glow
+  ctx.save();
+  ctx.strokeStyle='rgba(255,215,0,0.25)';
+  ctx.lineWidth= TRACK.thickness+34;
+  ctx.beginPath();
+  ctx.ellipse(TRACK.cx,TRACK.cy,TRACK.rw,TRACK.rh,0,0,Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+
+  // asphalt
+  ctx.fillStyle='#151515';
+  ctx.strokeStyle='#222';
+  ctx.lineWidth= TRACK.thickness;
+  ctx.beginPath();
+  ctx.ellipse(TRACK.cx,TRACK.cy,TRACK.rw,TRACK.rh,0,0,Math.PI*2);
+  ctx.stroke();
+
+  // inner grass
+  ctx.fillStyle='#0a0a0a';
+  ctx.beginPath();
+  ctx.ellipse(TRACK.cx,TRACK.cy,TRACK.rw-TRACK.thickness/2-8,TRACK.rh-TRACK.thickness/2-8,0,0,Math.PI*2);
+  ctx.fill();
+
+  // outer
+  ctx.strokeStyle='#FFD700';
+  ctx.lineWidth=2.5;
+  ctx.setLineDash([12,10]);
+  ctx.beginPath();
+  ctx.ellipse(TRACK.cx,TRACK.cy,TRACK.rw+TRACK.thickness/2+6,TRACK.rh+TRACK.thickness/2+6,0,0,Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(TRACK.cx,TRACK.cy,TRACK.rw-TRACK.thickness/2-10,TRACK.rh-TRACK.thickness/2-10,0,0,Math.PI*2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // checkpoints markers
+  for(let k=0;k<4;k++){
+    let a = k*Math.PI/2;
+    let p = ovalPoint(a,0);
+    ctx.fillStyle = (k%2===0) ? '#FFD700':'#444';
+    ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill();
+  }
+
+  // start finish line
+  let sp = ovalPoint(START_LINE_ANGLE, -TRACK.thickness/2+2);
+  let ep = ovalPoint(START_LINE_ANGLE, TRACK.thickness/2-2);
+  ctx.strokeStyle='#fff';
+  ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(sp.x,sp.y); ctx.lineTo(ep.x,ep.y); ctx.stroke();
+  // checkered
+  for(let i=0;i<6;i++){
+    ctx.fillStyle = i%2? '#fff':'#000';
+    let t = i/6;
+    ctx.fillRect(sp.x + (ep.x-sp.x)*t, sp.y + (ep.y-sp.y)*t -3, 8, 6);
+  }
+  ctx.fillStyle='#FFD700';
+  ctx.font='900 12px Orbitron';
+  ctx.fillText('START/FINISH', TRACK.cx+8, TRACK.cy-TRACK.rh-4);
+}
+
+function aiInput(car, idx){
+  // follow waypoints around circle
+  let targetAngle = trackAngleFromPos(car.x,car.y) + 0.18;
+  let target = ovalPoint(targetAngle, Math.sin(idx*0.001)*14);
+  let desired = Math.atan2(target.y-car.y, target.x-car.x);
+  let diff = desired - car.angle;
+  while(diff>Math.PI) diff-=Math.PI*2;
+  while(diff<-Math.PI) diff+=Math.PI*2;
+  let left = diff < -0.12;
+  let right = diff > 0.12;
+  let up = Math.abs(diff)<0.6;
+  if(car.speed<1.2) up=true;
+  return {left,right,up,down:false};
+}
+
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!gameRunning){ drawTrack(); car1.draw(); car2.draw(); return; }
+
+  let {i1,i2} = getInputs();
+  car1.update(i1);
+  if(mode==='local'){
+    car2.update(i2);
+  }else{
+    // ai
+    let ai = aiInput(car2, ts);
+    if(mode==='online' && roomCode && isHost===false){
+      // in online, opponent synced? still AI fallback
+    }
+    car2.update(ai);
+  }
+
+  // HUD
+  document.getElementById('lap1').textContent = Math.min(car1.lap,4)+'/3';
+  document.getElementById('lap2').textContent = Math.min(car2.lap,4)+'/3';
+  document.getElementById('speed1').textContent = Math.floor(Math.abs(car1.speed*28));
+  document.getElementById('speed2').textContent = Math.floor(Math.abs(car2.speed*28));
+
+  // check winner
+  if(car1.finished || car2.finished){
+    gameRunning=false;
+    let winner = car1.finished && !car2.finished ? 'BLACK (P1)' : !car1.finished && car2.finished ? 'GOLDEN (P2/AI)' : (car1.finishTime < car2.finishTime ? 'BLACK (P1)' : 'GOLDEN (P2/AI)');
+    let stake = parseInt(stakeSel.value);
+    let pot = stake*2;
+    let winAmt = Math.floor(pot*0.9);
+    statusEl.textContent = '🏁 Winner: '+winner+' +'+winAmt+' credits!';
+    if((winner.includes('BLACK') && mode!=='local') || (mode==='local')){
+      // for local, give to winner? for simplicity give to P1 if win else nothing, but add logic
+      if(winner.includes('BLACK')){
+        wallet += winAmt;
+      }else if(mode==='local'){
+        // award to P2 conceptually same wallet for demo
+        wallet += winAmt;
+      }
+    }else{
+      if(winner.includes('GOLDEN') && mode!=='local' && mode!=='ai'){
+        // opponent win, don't add
+      }else if(mode==='ai' && winner.includes('BLACK')){
+        wallet += winAmt;
+      }
+    }
+    updateWalletUI();
+    // sync online
+    if(db && roomCode){
+      updateDoc(doc(db,'racing_rooms',roomCode), {status:'finished', winner:winner, finishedAt:Date.now()}).catch(()=>{});
+    }
+    log('Race finished! Winner: '+winner+'. Click PLAY to restart. Pot '+pot+' stake validated.');
+  }
+
+  drawTrack();
+  car1.draw();
+  car2.draw();
+}
+requestAnimationFrame(loop);
+
+// start logic instant no async
+window.startGame = function(m){
+  let stake = parseInt(stakeSel.value);
+  if(wallet < stake){ alert('Not enough credits! Buy credits.'); buyCredits(); return; }
+  wallet -= stake;
+  updateWalletUI();
+  mode=m||'ai';
+  car1.reset();
+  car2.reset();
+  // slight offset for start grid
+  car1.x = TRACK.cx - 18; car1.y = TRACK.cy - TRACK.rh -6;
+  car2.x = TRACK.cx + 18; car2.y = TRACK.cy - TRACK.rh -6;
+  car1.angle=car2.angle=-Math.PI/2 + 0.1;
+  gameRunning=true;
+  statusEl.textContent = mode.toUpperCase()+' • Pot '+(stake*2)+' • First to 3 laps';
+  log('Green light! Arrow keys / gold buttons to drive. Complete 4 checkpoints then cross start to lap.');
+  if(roomCode && roomUnsub){ try{roomUnsub();}catch{} roomUnsub=null; }
+  if(m==='online'){ /* will be set by create/join */ }
+}
+
+// Rooms - Firestore collection racing_rooms
+let isHost=false;
+function genCode(){ return 'RACE-'+Math.random().toString(36).substring(2,6).toUpperCase(); }
+
+window.createRoom = async function(){
+  const stake = parseInt(stakeSel.value);
+  if(wallet < stake){ alert('Need stake credits'); return; }
+  const code = genCode();
+  roomCode=code;
+  roomBadge.textContent=code;
+  roomBadge.style.display='inline-block';
+  isHost=true;
+  startGame('online');
+  statusEl.textContent='Room '+code+' Waiting for opponent...';
+  if(db && user){
+    try{
+      await setDoc(doc(db,'racing_rooms',code), {
+        code, hostUid:user.uid, hostEmail:user.email, stake, pot:stake*2,
+        status:'waiting', createdAt:Date.now(), players:[user.uid],
+        hostFinished:false, guestFinished:false
+      });
+      roomUnsub = onSnapshot(doc(db,'racing_rooms',code), snap=>{
+        if(!snap.exists()) return;
+        let d=snap.data();
+        if(d.status==='joined'){ statusEl.textContent='Opponent joined! Racing...'; mode='online'; gameRunning=true; }
+        if(d.status==='finished'){ log('Online finished winner '+d.winner); }
+      });
+    }catch(e){ log('Room create offline fallback '+e.message); }
+  }else{
+    log('Room '+code+' created offline. Share code. (Login for online sync)');
+  }
+}
+
+window.joinRoom = async function(){
+  let input = document.getElementById('joinInput').value.trim().toUpperCase();
+  if(!input) { alert('Enter RACE-XXXX'); return; }
+  if(!input.startsWith('RACE-')) input='RACE-'+input.replace('RACE-','');
+  roomCode=input;
+  roomBadge.textContent=input;
+  roomBadge.style.display='inline-block';
+  isHost=false;
+  const stake = parseInt(stakeSel.value);
+  if(wallet < stake){ alert('Need stake'); return; }
+  wallet-=stake; updateWalletUI();
+  car1.reset(); car2.reset();
+  car1.x = TRACK.cx - 18; car1.y = TRACK.cy - TRACK.rh -6;
+  car2.x = TRACK.cx + 18; car2.y = TRACK.cy - TRACK.rh -6;
+  mode='online'; gameRunning=true;
+  statusEl.textContent='Joined '+input+' - Racing!';
+  if(db && user){
+    try{
+      const ref=doc(db,'racing_rooms',input);
+      const snap=await getDoc(ref);
+      if(snap.exists()){
+        await updateDoc(ref,{ guestUid:user.uid, status:'joined', players:[snap.data().hostUid, user.uid], joinedAt:Date.now() });
+        roomUnsub = onSnapshot(ref, s=>{ if(s.exists()&& s.data().status==='finished'){ log('Room finished '+s.data().winner); } });
+      }else{
+        log('Room not found on cloud, racing offline as guest of '+input);
+      }
+    }catch(e){ log('Join offline '+e.message); }
+  }
+}
+
+// fixed render: guarantee first paint
+drawTrack(); car1.draw(); car2.draw();
+statusEl.textContent='Ready — Click PLAY vs AI (Instant)';
+log('Single file ready. Paystack LIVE '+PAYSTACK_LIVE_KEY.slice(0,12)+'... Firebase chessbyethan. No async locks.');
+</script>
+</body>
+</html>

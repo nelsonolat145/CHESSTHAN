@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SOCCER FREE KICK • Black & Golden</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+  }
+}
+</script>
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#FFC200;--goldGlow:0 0 18px #FFD700,0 0 36px rgba(255,215,0,.35);}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:radial-gradient(1200px 600px at 50% -10%, #222 0%, #000 70%);color:var(--gold);min-height:100vh;overflow-x:hidden;user-select:none}
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border:2px solid var(--gold);box-shadow:var(--goldGlow);background:#0a0a0a;position:sticky;top:0;z-index:10}
+.left,.right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:2px solid var(--gold);background:#000;color:var(--gold);padding:8px 14px;border-radius:10px;font-weight:800;letter-spacing:.5px;cursor:pointer;box-shadow:var(--goldGlow);transition:.15s}
+.btn:active{transform:scale(.96)} .btn.gold{background:var(--gold);color:#000}
+.pill{border:1px solid var(--gold);border-radius:999px;padding:6px 10px;background:#111;color:var(--gold);font-weight:700;font-size:13px}
+select.pill{outline:none}
+input.pill{background:#000;color:var(--gold);outline:none;min-width:120px}
+#gameWrap{max-width:980px;margin:14px auto;padding:0 12px;display:grid;grid-template-columns:1fr 300px;gap:12px}
+@media(max-width:850px){#gameWrap{grid-template-columns:1fr}}
+.fieldCard{border:2px solid var(--gold);border-radius:18px;background:linear-gradient(180deg,#0e0e0e,#000);box-shadow:var(--goldGlow);overflow:hidden;position:relative}
+#canvas{width:100%;height:540px;display:block;background:radial-gradient(600px 300px at 50% 0%, #1a1a00 0%, #000 60%)}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:2;text-align:center;padding:18px}
+.overlay h1{font-size:38px;letter-spacing:2px;text-shadow:0 0 12px var(--gold)}
+.side{border:2px solid var(--gold);border-radius:18px;background:#0a0a0a;box-shadow:var(--goldGlow);padding:12px;display:flex;flex-direction:column;gap:10px;max-height:720px;overflow:auto}
+.badge{border:1px solid var(--gold);border-radius:12px;padding:8px 10px;background:#111;display:flex;justify-content:space-between}
+.zones{position:absolute;bottom:86px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:3}
+.z{width:62px;height:44px;border:2px solid var(--gold);border-radius:10px;background:rgba(0,0,0,.6);color:var(--gold);font-weight:900;display:grid;place-items:center;cursor:pointer;box-shadow:var(--goldGlow)}
+.z.sel{background:var(--gold);color:#000}
+.z:hover{filter:brightness(1.2)}
+.powerWrap{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:82%;max-width:520px;height:32px;border:2px solid var(--gold);border-radius:999px;background:#111;overflow:hidden;z-index:3;display:none;box-shadow:var(--goldGlow)}
+.powerFill{height:100%;width:0%;background:linear-gradient(90deg,#000,#FFD700);transition:width .05s linear}
+.powerCursor{position:absolute;top:-6px;width:4px;height:44px;background:#fff;box-shadow:0 0 10px #fff;left:0}
+.wind{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,.6);border:2px solid var(--gold);border-radius:999px;padding:6px 12px;font-weight:900;box-shadow:var(--goldGlow)}
+.scoreBoard{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.dot{width:22px;height:22px;border:1px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900}
+.dot.hit{background:var(--gold);color:#000} .dot.miss{background:#222}
+.log{font-size:12px;line-height:1.4;max-height:140px;overflow:auto;background:#050505;border:1px solid #333;border-radius:10px;padding:8px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="left">
+    <span class="pill" style="font-weight:900;letter-spacing:1px">⚽ SOCCER FREE KICK • BLACK & GOLDEN</span>
+    <button id="authBtn" class="btn gold">LOGIN GMAIL</button>
+    <span id="userPill" class="pill" style="display:none"></span>
+    <span id="walletPill" class="pill">WALLET: ₦0</span>
+    <button class="btn" onclick="buyCredits()">BUY CREDITS</button>
+  </div>
+  <div class="right">
+    <select id="stakeSel" class="pill">
+      <option value="100">STAKE 100</option>
+      <option value="500">STAKE 500</option>
+      <option value="1000" selected>STAKE 1000</option>
+      <option value="5000">STAKE 5000</option>
+    </select>
+    <select id="modeSel" class="pill">
+      <option value="local">LOCAL 2P</option>
+      <option value="ai">SOLO vs AI</option>
+      <option value="online">ONLINE ROOM</option>
+    </select>
+    <button id="createBtn" class="btn">CREATE ROOM</button>
+    <input id="joinInput" class="pill" placeholder="SOCC-XXXX" style="width:130px">
+    <button id="joinBtn" class="btn">JOIN ROOM</button>
+    <span id="roomPill" class="pill" style="display:none"></span>
+    <button class="btn gold" onclick="resetMatch()">NEW MATCH</button>
+  </div>
+</div>
+
+<div id="gameWrap">
+  <div class="fieldCard">
+    <div id="windEl" class="wind">WIND → 0.0</div>
+    <canvas id="canvas" width="720" height="540"></canvas>
+    <div id="zoneBar" class="zones"></div>
+    <div id="powerWrap" class="powerWrap"><div id="powerFill" class="powerFill"></div><div id="powerCursor" class="powerCursor"></div></div>
+    <div id="startOverlay" class="overlay">
+      <h1>GOLDEN STRIKER vs BLACK KEEPER</h1>
+      <p style="margin:10px 0 14px;max-width:520px;color:#fff">5 free kicks each, alternating. Click goal zone (5 zones) then STOP power bar to shoot. Keeper dives. Wind curves ball. First to most goals wins. Sudden death if tie.</p>
+      <div class="scoreBoard" id="previewScores"></div>
+      <button class="btn gold" style="margin-top:14px;font-size:18px;padding:12px 22px" onclick="startMatch()">▶ CLICK TO PLAY</button>
+      <p style="margin-top:10px;font-size:12px;color:#aaa">Pot = Stake x2 • Winner takes 90% • No login needed for Local</p>
+    </div>
+    <div id="resultOverlay" class="overlay" style="display:none"></div>
+  </div>
+  <div class="side">
+    <div class="badge"><span>ROUND</span><span id="roundTxt">1 / 10</span></div>
+    <div class="badge"><span>TURN</span><span id="turnTxt">PLAYER 1 - STRIKER</span></div>
+    <div class="badge"><span>SCORE P1</span><span id="s1">0 GOALS</span></div>
+    <div class="badge"><span>SCORE P2</span><span id="s2">0 GOALS</span></div>
+    <div class="badge"><span>POT</span><span id="potTxt">₦2000</span></div>
+    <div class="badge"><span>KEEPER GUESS</span><span id="keeperTxt">—</span></div>
+    <div>Goal Zones - Click to Aim</div>
+    <div id="sideZones" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <button id="actionBtn" class="btn gold" style="width:100%;padding:14px;font-size:16px">SELECT ZONE</button>
+    <div class="log" id="log"></div>
+    <div style="font-size:11px;color:#888">Firebase: soccer_rooms • Wallet: ethan_credits • Paystack LIVE pk_live_ec06b408bfb5c633263ee48346288df5df12df7f • Black #000 Gold #FFD700</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.appspot.com",
+  messagingSenderId: "1058912430780",
+  appId: "1:1058912430780:web:abc123soccerblackgold",
+  measurementId: "G-SOCCERBLACKGOLD"
+};
+let app, auth, db;
+try{ app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); }catch(e){ console.warn("firebase init", e) }
+
+const PAYSTACK_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const zoneBar = document.getElementById('zoneBar');
+const sideZones = document.getElementById('sideZones');
+const powerWrap = document.getElementById('powerWrap');
+const powerFill = document.getElementById('powerFill');
+const powerCursor = document.getElementById('powerCursor');
+const windEl = document.getElementById('windEl');
+
+let currentUser=null, wallet=0, unsubRoom=null, roomCode=null, roomDocId=null;
+let game = null;
+let anim = {t:0, playing:false, ball:{x:360,y:480}, targetZone:2, power:0.5, keeperZone:2, result:null};
+
+function log(m){ const el=document.getElementById('log'); el.innerHTML = `<div>> ${m}</div>` + el.innerHTML; }
+
+function genCode(){ return 'SOCC-' + Math.floor(1000+Math.random()*9000); }
+
+// --- Wallet ---
+async function ensureWallet(uid){
+  if(!db) return 0;
+  const ref = doc(db,'ethan_credits',uid);
+  const snap = await getDoc(ref);
+  if(!snap.exists()){ await setDoc(ref,{credits:1000, uid, updatedAt:serverTimestamp()}); return 1000; }
+  return snap.data().credits||0;
+}
+async function updateWalletUI(){
+  document.getElementById('walletPill').textContent = `WALLET: ₦${wallet}`;
+  document.getElementById('potTxt').textContent = `₦${getStake()*2} (WIN ₦${Math.floor(getStake()*2*0.9)})`;
+}
+function getStake(){ return parseInt(document.getElementById('stakeSel').value,10)||1000; }
+
+// --- Auth ---
+const authBtn = document.getElementById('authBtn');
+authBtn.onclick = async ()=>{
+  if(currentUser){ await signOut(auth); return; }
+  if(!auth){ alert("Firebase not ready - you can still play local"); return; }
+  const prov = new GoogleAuthProvider();
+  signInWithPopup(auth,prov).catch(e=>alert(e.message));
+};
+if(auth){
+  onAuthStateChanged(auth, async (u)=>{
+    currentUser=u;
+    if(u){
+      authBtn.textContent="LOGOUT";
+      document.getElementById('userPill').style.display="inline-block";
+      document.getElementById('userPill').textContent=u.displayName||u.email;
+      wallet = await ensureWallet(u.uid);
+      updateWalletUI();
+      log(`Logged in ${u.email} credits ${wallet}`);
+    } else {
+      authBtn.textContent="LOGIN GMAIL";
+      document.getElementById('userPill').style.display="none";
+      wallet=0; updateWalletUI();
+    }
+  });
+}
+
+// --- Paystack ---
+window.buyCredits = ()=>{
+  const email = currentUser?.email || prompt("Enter email for Paystack receipt:");
+  if(!email) return;
+  const amountN = parseInt(prompt("How much credits to buy? (₦100 = 100 credits)","1000"),10);
+  if(!amountN || amountN<100) return alert("Min 100");
+  const handler = window.PaystackPop.setup({
+    key: PAYSTACK_KEY,
+    email: email,
+    amount: amountN*100,
+    currency: "NGN",
+    callback: async function(res){
+      log(`Paystack OK ${res.reference}`);
+      if(currentUser && db){
+        const ref = doc(db,'ethan_credits',currentUser.uid);
+        const s = await getDoc(ref);
+        const cur = s.exists()? (s.data().credits||0):0;
+        await setDoc(ref,{credits: cur+amountN, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
+        wallet = cur+amountN; updateWalletUI();
+      } else {
+        wallet += amountN; updateWalletUI();
+      }
+      alert(`Credited ₦${amountN}`);
+    },
+    onClose: ()=>log("Paystack closed")
+  });
+  handler.openIframe();
+};
+
+// --- Game Core ---
+function newGameState(){
+  return {
+    mode: document.getElementById('modeSel').value,
+    kicksP1:[], // array of {goal,bool}
+    kicksP2:[],
+    turnIndex:0, // 0..9 (10 kicks) even=P1 striker, odd=P2 striker ; sudden death continues
+    striker:1, // 1 or 2
+    selectedZone:null,
+    phase:'pick', // pick | power | shooting | result
+    wind: (Math.random()*6-3),
+    powerOsc:0, dir:1,
+    sudden:false,
+    winner:null
+  };
+}
+
+function startMatch(){
+  document.getElementById('startOverlay').style.display='none';
+  document.getElementById('resultOverlay').style.display='none';
+  game = newGameState();
+  game.mode = document.getElementById('modeSel').value;
+  anim.playing=false;
+  anim.ball={x:360,y:480};
+  document.getElementById('powerWrap').style.display='none';
+  log(`Match start mode=${game.mode} stake=${getStake()} wind=${game.wind.toFixed(1)}`);
+  renderLoop();
+  tickPhase();
+}
+window.startMatch = startMatch;
+window.resetMatch = ()=>{ if(unsubRoom){ unsubRoom(); unsubRoom=null; } roomCode=null; document.getElementById('roomPill').style.display='none'; document.getElementById('startOverlay').style.display='flex'; document.getElementById('resultOverlay').style.display='none'; if(game) game=null; drawField(); };
+
+function scoreCount(arr){ return arr.filter(k=>k).length; }
+function getCurrentStriker(){ return (game.turnIndex %2===0)?1:2; }
+
+function tickPhase(){
+  if(!game) return;
+  const striker = getCurrentStriker();
+  const round = Math.floor(game.turnIndex/2)+1;
+  document.getElementById('roundTxt').textContent = game.sudden ? `SUDDEN ${game.turnIndex+1}` : `${game.turnIndex+1} / 10`;
+  document.getElementById('turnTxt').textContent = `P${striker} - STRIKER`;
+  document.getElementById('s1').textContent = `${scoreCount(game.kicksP1)} GOALS`;
+  document.getElementById('s2').textContent = `${scoreCount(game.kicksP2)} GOALS`;
+  document.getElementById('keeperTxt').textContent = '—';
+  windEl.textContent = `WIND ${game.wind>0?'→':'←'} ${Math.abs(game.wind).toFixed(1)}`;
+  buildZones();
+  if(game.phase==='pick'){
+    document.getElementById('actionBtn').textContent = `P${striker} SELECT ZONE`;
+    document.getElementById('powerWrap').style.display='none';
+  }
+}
+
+function buildZones(){
+  const mk = (container)=>{
+    container.innerHTML='';
+    for(let i=1;i<=5;i++){
+      const d=document.createElement('div'); d.className='z'+(game?.selectedZone===i?' sel':'');
+      d.textContent=i; d.onclick=()=>selectZone(i); container.appendChild(d);
+    }
+  };
+  mk(zoneBar); mk(sideZones);
+}
+
+function selectZone(z){
+  if(!game || game.phase!=='pick') return;
+  game.selectedZone=z;
+  buildZones();
+  // go to power
+  game.phase='power';
+  document.getElementById('powerWrap').style.display='block';
+  document.getElementById('actionBtn').textContent='STOP POWER - SHOOT!';
+  game.powerOsc=0; game.dir=1;
+  if(!anim._powerInterval){
+    anim._powerInterval=setInterval(()=>{
+      if(!game || game.phase!=='power') return;
+      game.powerOsc+= game.dir*3.5;
+      if(game.powerOsc>=100){ game.powerOsc=100; game.dir=-1; }
+      if(game.powerOsc<=0){ game.powerOsc=0; game.dir=1; }
+      const pct = game.powerOsc;
+      powerFill.style.width = pct+'%';
+      powerCursor.style.left = pct+'%';
+    },16);
+  }
+}
+
+document.getElementById('actionBtn').onclick = ()=>{
+  if(!game) return;
+  if(game.phase==='pick'){ return; }
+  if(game.phase==='power'){ shoot(); }
+  if(game.phase==='result'){ nextKick(); }
+};
+
+function shoot(){
+  if(!game) return;
+  if(anim._powerInterval){ clearInterval(anim._powerInterval); anim._powerInterval=null; }
+  const power = game.powerOsc/100;
+  const zone = game.selectedZone;
+  if(!zone) return;
+  // keeper choice
+  let keeperZone;
+  if(game.mode==='local'){
+    // for local 2P, keeper is other player - if they pre-selected? simplify: random but biased for drama
+    keeperZone = Math.random()<0.6 ? zone : (Math.floor(Math.random()*5)+1);
+    // if previous keeper pick stored we could use, but keep instant
+  } else if(game.mode==='ai'){
+    keeperZone = Math.random()<0.55 ? (Math.random()<0.7? zone : zone) : Math.floor(Math.random()*5)+1;
+    if(Math.random()<0.3) keeperZone = Math.floor(Math.random()*5)+1;
+  } else {
+    keeperZone = Math.floor(Math.random()*5)+1;
+  }
+  game.phase='shooting';
+  anim.playing=true;
+  anim.t=0;
+  anim.targetZone=zone;
+  anim.power=power;
+  anim.keeperZone=keeperZone;
+  anim.ball={x:360,y:480};
+  document.getElementById('keeperTxt').textContent = `DIVE ZONE ${keeperZone}`;
+  // animation via RAF
+  const start = performance.now();
+  const duration = 900 + (1-power)*400;
+  function step(now){
+    const prog = Math.min(1,(now-start)/duration);
+    const eased = 1-Math.pow(1-prog,2);
+    // ball path
+    const goalXMap = {1:180,2:280,3:360,4:440,5:540};
+    const baseX = goalXMap[zone] || 360;
+    const windOffset = game.wind * 28 * power;
+    const x = 360 + (baseX+windOffset-360)*eased + Math.sin(eased*Math.PI)*game.wind*10;
+    const y = 480 - eased*380 - Math.sin(eased*Math.PI)* (40+power*80);
+    anim.ball={x,y};
+    anim.t=prog;
+    if(prog<1){ requestAnimationFrame(step); } else { resolveKick(); }
+  }
+  requestAnimationFrame(step);
+}
+
+function resolveKick(){
+  anim.playing=false;
+  const zone = anim.targetZone;
+  const keeperZone = anim.keeperZone;
+  const power = anim.power;
+  // save logic: if keeper same zone and power not extreme -> save
+  // power too low <0.25 miss, too high >0.95 miss over bar
+  let goal = true;
+  let reason = "GOAL!";
+  if(power<0.18){ goal=false; reason="WEAK - WIDE!"; }
+  else if(power>0.96){ goal=false; reason="OVER THE BAR!"; }
+  else if(keeperZone===zone){
+    const saveChance = 0.55 + (power<0.5?0.2:0) - (Math.abs(game.wind)>2? -0.15:0);
+    if(Math.random()<saveChance){ goal=false; reason=`SAVED! Keeper dived ${keeperZone}`; }
+  } else if(Math.abs(keeperZone-zone)===1 && Math.random()<0.28){
+    goal=false; reason=`BRILLIANT SAVE - stretched!`;
+  }
+  // record
+  const striker = getCurrentStriker();
+  if(striker===1) game.kicksP1.push(goal);
+  else game.kicksP2.push(goal);
+  log(`P${striker} zone ${zone} power ${(power*100).toFixed(0)}% keeper ${keeperZone} -> ${goal?'GOAL':'MISS'} wind ${game.wind.toFixed(1)}`);
+  game.phase='result';
+  document.getElementById('powerWrap').style.display='none';
+  document.getElementById('actionBtn').textContent = goal? 'GOAL! NEXT KICK':'SAVED! NEXT KICK';
+  anim.result = {goal,reason};
+  checkWinner();
+  drawField(); // ensure final frame
+}
+
+function nextKick(){
+  if(!game) return;
+  if(game.winner){ showWinner(); return; }
+  game.turnIndex++;
+  // check if 10 kicks done
+  if(!game.sudden && game.turnIndex>=10){
+    const s1=scoreCount(game.kicksP1), s2=scoreCount(game.kicksP2);
+    if(s1===s2){ game.sudden=true; log("TIE - SUDDEN DEATH!"); }
+    else { finishMatch(); return; }
+  }
+  if(game.sudden){
+    // after each pair check if one leads
+    if(game.turnIndex%2===0 && game.turnIndex>10){
+      const s1=scoreCount(game.kicksP1), s2=scoreCount(game.kicksP2);
+      if(s1!==s2){ finishMatch(); return; }
+    }
+    if(game.turnIndex>18){ finishMatch(); return; } // max sudden
+  }
+  game.selectedZone=null;
+  game.phase='pick';
+  game.wind = (Math.random()*6-3);
+  anim.result=null;
+  anim.ball={x:360,y:480};
+  tickPhase();
+  drawField();
+}
+
+function checkWinner(){
+  if(!game.sudden && game.turnIndex<9) return;
+  // early win math possible to skip but simplified
+}
+
+function finishMatch(){
+  const s1=scoreCount(game.kicksP1), s2=scoreCount(game.kicksP2);
+  let winner = s1>s2?1: s2>s1?2:0;
+  game.winner=winner;
+  showWinner();
+  // payout
+  if(currentUser && getStake()>0){
+    const stake=getStake();
+    if(winner!==0 && db){
+      (async()=>{
+        const ref = doc(db,'ethan_credits',currentUser.uid);
+        const snap = await getDoc(ref);
+        let credits = snap.exists()? (snap.data().credits||0):wallet;
+        // simplistic: if user is P1 and wins, give 90% pot, else deduct? For demo just credit win if logged user assumed P1
+        // To avoid exploits, only handle when stake deducted elsewhere - here just bonus win for P1 if P1 won
+        if(winner===1){
+          const win = Math.floor(stake*2*0.9);
+          credits += win;
+          await setDoc(ref,{credits, uid:currentUser.uid, updatedAt:serverTimestamp()},{merge:true});
+          wallet=credits; updateWalletUI();
+          log(`You won pot win ₦${win}`);
+        }
+      })();
+    }
+  }
+}
+
+function showWinner(){
+  const s1=scoreCount(game.kicksP1), s2=scoreCount(game.kicksP2);
+  const el=document.getElementById('resultOverlay');
+  el.style.display='flex';
+  const winTxt = game.winner===0? "DRAW - SHARE POT" : `PLAYER ${game.winner} WINS ${s1}-${s2}!`;
+  el.innerHTML = `<h1 style="font-size:42px">${winTxt}</h1><p style="color:#fff;margin:10px">P1 ${s1} - P2 ${s2} | Pot ₦${getStake()*2} Winner 90%</p><div class="scoreBoard">${renderDots(game.kicksP1)} vs ${renderDots(game.kicksP2)}</div><button class="btn gold" style="margin-top:16px;font-size:18px" onclick="startMatch()">REMATCH ▶</button><button class="btn" style="margin-top:8px" onclick="resetMatch()">HOME</button>`;
+}
+function renderDots(arr){ return arr.map(b=>`<span class="dot ${b?'hit':'miss'}">${b?'G':'X'}</span>`).join(''); }
+
+// --- Drawing : fixed render logic guarantees play ---
+function drawField(){
+  const W=720,H=540;
+  ctx.clearRect(0,0,W,H);
+  // pitch
+  ctx.fillStyle='#001100'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#FFD700'; ctx.lineWidth=2;
+  ctx.strokeRect(40,20,W-80,H-80);
+  // goal
+  ctx.fillStyle='#111'; ctx.fillRect(120,30,480,120);
+  ctx.strokeStyle='#FFD700'; ctx.strokeRect(120,30,480,120);
+  // 5 zones
+  for(let i=0;i<5;i++){ const x=120+i*96; ctx.strokeRect(x,30,96,120); ctx.fillStyle='rgba(255,215,0,.06)'; if(game?.selectedZone===i+1) ctx.fillRect(x,30,96,120); ctx.fillStyle='#FFD700'; ctx.font='900 22px system-ui'; ctx.fillText(i+1,x+38,88); }
+  // keeper
+  const keeperXMap={1:180,2:280,3:360,4:440,5:540};
+  let kX=360,kY=105;
+  if(anim.keeperZone){ kX=keeperXMap[anim.keeperZone]||360; if(anim.t>0.3) kX+= (anim.keeperZone<3?-20: anim.keeperZone>3?20:0); kY=100+Math.sin((anim.t||0)*Math.PI)*10; }
+  ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(kX,kY,18,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#FFD700'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle='#FFD700'; ctx.fillRect(kX-14,kY+18,28,30);
+  // ball
+  const b = anim.ball||{x:360,y:480};
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(b.x,b.y,10,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle='#000'; ctx.font='8px system-ui'; ctx.fillText('⚽',b.x-5,b.y-12);
+  // striker
+  ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(360,480,16,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#000'; ctx.fillRect(346,496,28,22);
+  // curve line preview
+  if(game?.selectedZone && game.phase==='pick'){
+    ctx.setLineDash([6,6]); ctx.strokeStyle='rgba(255,215,0,.6)'; ctx.beginPath(); ctx.moveTo(360,470); const gx=keeperXMap[game.selectedZone]; ctx.quadraticCurveTo(360+game.wind*20,280,gx,105); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // result text
+  if(anim.result){ ctx.fillStyle=anim.result.goal?'#FFD700':'#ff4444'; ctx.font='900 32px system-ui'; ctx.fillText(anim.result.reason, W/2-120, 220); }
+}
+function renderLoop(){ drawField(); requestAnimationFrame(renderLoop); }
+renderLoop();
+
+// --- Rooms : soccer_rooms ---
+document.getElementById('createBtn').onclick = async ()=>{
+  const stake=getStake();
+  if(!db){ alert("Firebase offline - can't create room, but Local still works"); return; }
+  if(currentUser && wallet<stake){ alert(`Need ₦${stake} credits. Buy credits.`); return; }
+  const code=genCode();
+  try{
+    const ref = doc(collection(db,'soccer_rooms'));
+    await setDoc(ref,{code, stake, hostUid: currentUser?.uid||'guest', hostName: currentUser?.displayName||'Golden Host', status:'waiting', createdAt:serverTimestamp(), gameState:newGameState(), players:{host:currentUser?.uid||'guest'}});
+    roomCode=code; roomDocId=ref.id;
+    document.getElementById('roomPill').style.display='inline-block'; document.getElementById('roomPill').textContent=`ROOM ${code}`;
+    log(`Room created ${code} id ${ref.id}`);
+    subscribeRoom(ref.id);
+    // deduct stake for host
+    if(currentUser && db){ const wRef=doc(db,'ethan_credits',currentUser.uid); const s=await getDoc(wRef); let cr=s.exists()?s.data().credits:0; if(cr>=stake){ await updateDoc(wRef,{credits:cr-stake}); wallet=cr-stake; updateWalletUI(); } }
+  }catch(e){ alert(e.message); }
+};
+document.getElementById('joinBtn').onclick = async ()=>{
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  if(!code) return alert("Enter code SOCC-XXXX");
+  if(!db) return alert("Firebase offline");
+  try{
+    const q=query(collection(db,'soccer_rooms'), where('code','==',code), where('status','==','waiting'));
+    const snap=await getDocs(q);
+    if(snap.empty) return alert("Room not found / not waiting");
+    const d=snap.docs[0]; const data=d.data();
+    const stake=data.stake||getStake();
+    if(currentUser && wallet<stake){ alert(`Need ₦${stake}`); return; }
+    await updateDoc(d.ref,{guestUid:currentUser?.uid||'guest', guestName:currentUser?.displayName||'Black Guest', status:'playing', players:{...data.players, guest:currentUser?.uid||'guest'}});
+    roomCode=code; roomDocId=d.id;
+    document.getElementById('roomPill').style.display='inline-block'; document.getElementById('roomPill').textContent=`ROOM ${code}`;
+    log(`Joined ${code}`);
+    subscribeRoom(d.id);
+    if(currentUser && db){ const wRef=doc(db,'ethan_credits',currentUser.uid); const s=await getDoc(wRef); let cr=s.exists()?s.data().credits:0; if(cr>=stake){ await updateDoc(wRef,{credits:cr-stake}); wallet=cr-stake; updateWalletUI(); } }
+  }catch(e){ alert(e.message); }
+};
+function subscribeRoom(id){
+  if(unsubRoom) unsubRoom();
+  const ref=doc(db,'soccer_rooms',id);
+  unsubRoom=onSnapshot(ref,(snap)=>{
+    if(!snap.exists()) return;
+    const d=snap.data();
+    if(d.gameState && d.status==='playing'){
+      // sync for online - apply remote gameState if newer turn
+      if(!game || d.gameState.turnIndex>=game.turnIndex){ game=d.gameState; anim.ball={x:360,y:480}; tickPhase(); }
+    }
+  });
+}
+async function syncOnline(){
+  if(!roomDocId || !db || document.getElementById('modeSel').value!=='online') return;
+  try{ await updateDoc(doc(db,'soccer_rooms',roomDocId),{gameState:game, updatedAt:serverTimestamp()}); }catch{}
+}
+// hook sync after key actions
+const origNext = nextKick;
+window.nextKick = function(){ origNext(); syncOnline(); };
+const origRes = resolveKick;
+window.resolveKick = function(){ origRes(); setTimeout(syncOnline,100); };
+
+// --- instant click-to-play guarantee: canvas click zones ---
+canvas.addEventListener('click',(e)=>{
+  if(!game) { startMatch(); return; }
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=720/rect.width, scaleY=540/rect.height;
+  const x=(e.clientX-rect.left)*scaleX, y=(e.clientY-rect.top)*scaleY;
+  if(y>=30 && y<=150 && x>=120 && x<=600){
+    const zone = Math.floor((x-120)/96)+1;
+    if(game.phase==='pick') selectZone(zone);
+    return;
+  }
+  if(game.phase==='power'){ shoot(); }
+  else if(game.phase==='result'){ nextKick(); }
+});
+powerWrap.onclick = ()=>{ if(game?.phase==='power') shoot(); };
+
+// stake change
+document.getElementById('stakeSel').addEventListener('change',()=>{ updateWalletUI(); });
+document.getElementById('modeSel').addEventListener('change',()=>{ log(`Mode ${document.getElementById('modeSel').value}`); });
+
+updateWalletUI();
+buildZones();
+</script>
+</body>
+</html>

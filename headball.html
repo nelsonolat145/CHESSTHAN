@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>HEAD SOCCER - Black vs Gold</title>
+<script async src="https://ga.jspm.io/npm:es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+  }
+}
+</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+:root{--black:#000;--gold:#FFD700;--gold2:#ffb300;--glow:0 0 12px rgba(255,215,0,.7),0 0 28px rgba(255,215,0,.35)}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto}
+body{background:#000;color:var(--gold);overflow-x:hidden}
+#top{position:sticky;top:0;z-index:99;background:linear-gradient(180deg,#111,#000);border-bottom:2px solid var(--gold);box-shadow:var(--glow);display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px}
+.badge{border:1.5px solid var(--gold);border-radius:999px;padding:6px 12px;background:rgba(255,215,0,.08);box-shadow:var(--glow);font-weight:700;font-size:13px;cursor:pointer;user-select:none}
+.badge.active{background:var(--gold);color:#000}
+.btn{border:2px solid var(--gold);background:#000;color:var(--gold);border-radius:12px;padding:8px 14px;font-weight:800;letter-spacing:.5px;cursor:pointer;box-shadow:var(--glow);transition:.15s}
+.btn:hover{background:var(--gold);color:#000;transform:translateY(-1px)}
+.btn:disabled{opacity:.4}
+input,select{border:2px solid var(--gold);background:#0a0a0a;color:var(--gold);border-radius:10px;padding:8px 10px;font-weight:700;outline:none;box-shadow:var(--glow)}
+#wrap{display:flex;flex-direction:column;align-items:center;padding:10px}
+#scorebar{display:flex;gap:18px;align-items:center;margin:8px 0;font-weight:900;font-size:22px;text-shadow:var(--glow)}
+#scorebar span{border:1px solid var(--gold);padding:4px 12px;border-radius:10px;background:#111}
+#canvasBox{position:relative;border:3px solid var(--gold);border-radius:16px;box-shadow:var(--glow);background:radial-gradient(120% 120% at 50% 0%,#222 0%,#000 60%);overflow:hidden}
+canvas{display:block;touch-action:none}
+#mobileCtrl{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;padding:6px;gap:6px;pointer-events:none}
+.ctrlGroup{display:flex;gap:6px;pointer-events:auto}
+.mbtn{width:56px;height:56px;border-radius:14px;border:2px solid var(--gold);background:rgba(0,0,0,.7);color:var(--gold);font-weight:900;font-size:18px;box-shadow:var(--glow);user-select:none}
+.mbtn:active{background:var(--gold);color:#000}
+#overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.78);backdrop-filter:blur(3px);z-index:5;text-align:center;padding:18px}
+h1{font-size:42px;line-height:1;letter-spacing:2px;text-shadow:var(--glow)}
+.sub{opacity:.9;margin:8px 0 14px}
+#modes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.kbd{font-size:11px;opacity:.8;margin-top:10px}
+#log{font-size:12px;opacity:.7;max-width:900px;word-break:break-all;padding:6px}
+</style>
+</head>
+<body>
+<div id="top">
+  <div class="badge" id="authBadge">⚫ Guest • Click to Login</div>
+  <div class="badge" id="walletBadge">💰 Wallet: 0 credits</div>
+  <select id="stakeSel" title="Stake">
+    <option value="100">Stake 100</option>
+    <option value="500">Stake 500</option>
+    <option value="1000" selected>Stake 1000</option>
+    <option value="5000">Stake 5000</option>
+  </select>
+  <button class="btn" id="buyBtn">Buy Credits</button>
+  <button class="btn" id="localBtn">Local 2P</button>
+  <button class="btn" id="createBtn">Create Room</button>
+  <input id="roomInput" placeholder="HEAD-XXXX" style="width:130px"/>
+  <button class="btn" id="joinBtn">Join Room</button>
+  <button class="btn" id="leaveBtn">Leave</button>
+</div>
+
+<div id="wrap">
+  <div id="scorebar"><span id="sGold">GOLD 0</span><span id="timer">60.0s</span><span id="sBlack">BLACK 0</span></div>
+  <div id="canvasBox">
+    <canvas id="game" width="900" height="520"></canvas>
+    <div id="mobileCtrl">
+      <div class="ctrlGroup">
+        <button class="mbtn" data-k="a">◀</button>
+        <button class="mbtn" data-k="w">▲</button>
+        <button class="mbtn" data-k="d">▶</button>
+        <button class="mbtn" data-k="k">KICK</button>
+      </div>
+      <div class="ctrlGroup">
+        <button class="mbtn" data-k="ArrowLeft">◀</button>
+        <button class="mbtn" data-k="ArrowUp">▲</button>
+        <button class="mbtn" data-k="ArrowRight">▶</button>
+        <button class="mbtn" data-k=" ">KICK</button>
+      </div>
+    </div>
+    <div id="overlay">
+      <h1>HEAD<br/>SOCCER</h1>
+      <div class="sub">Black vs Golden • First to score in 60 seconds wins • 90% pot payout</div>
+      <div id="modes">
+        <button class="btn" id="playLocal">▶ PLAY LOCAL 2P</button>
+        <button class="btn" id="playVsCpu">▶ VS CPU</button>
+        <button class="btn" id="playOnline">▶ CREATE ONLINE ROOM</button>
+      </div>
+      <div class="kbd">GOLD: A/D move • W jump • F / K kick • BLACK: ← → move • ↑ jump • SPACE kick • Mobile: use bottom buttons</div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, serverTimestamp, increment } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",
+  authDomain: "chessbyethan.firebaseapp.com",
+  projectId: "chessbyethan",
+  storageBucket: "chessbyethan.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abcdef"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ---------- PAYSTACK ----------
+const PAYSTACK_KEY = "pk_live_ec06b408bfb5c633263ee48346288df5df12df7f";
+window.buyCredits = function(amount=1000){
+  const email = auth.currentUser?.email || "guest@headball.local";
+  if(typeof PaystackPop === 'undefined'){ alert('Paystack loading...'); return; }
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_KEY,
+    email: email,
+    amount: amount * 100,
+    currency: "NGN",
+    callback: async function(response){
+      try{
+        if(!auth.currentUser){ alert('Payment ok '+response.reference+' - login to save'); return; }
+        const ref = doc(db,"ethan_credits",auth.currentUser.uid);
+        await setDoc(ref,{credits: increment(amount), updated: serverTimestamp(), email: email},{merge:true});
+        alert(''+amount+' credits added!');
+        refreshWallet();
+      }catch(e){ alert('Credit error '+e.message); }
+    },
+    onClose: function(){}
+  });
+  handler.openIframe();
+};
+
+// ---------- WALLET ----------
+let myCredits = 0;
+async function refreshWallet(){
+  const b = document.getElementById('walletBadge');
+  if(!auth.currentUser){ b.textContent='💰 Wallet: 0 (login)'; myCredits=0; return; }
+  try{
+    const snap = await getDoc(doc(db,"ethan_credits",auth.currentUser.uid));
+    myCredits = snap.exists()? (snap.data().credits||0) : 0;
+    b.textContent = '💰 Wallet: '+myCredits+' credits';
+  }catch(e){ b.textContent='💰 Wallet: ?'; }
+}
+
+// ---------- AUTH ----------
+const authBadge = document.getElementById('authBadge');
+authBadge.onclick = async ()=>{
+  if(auth.currentUser){ await signOut(auth); }
+  else{
+    try{
+      const prov = new GoogleAuthProvider();
+      await signInWithPopup(auth, prov);
+    }catch(e){ document.getElementById('log').textContent='Auth error: '+e.message; }
+  }
+};
+onAuthStateChanged(auth, async (u)=>{
+  if(u){ authBadge.textContent='⚫ '+ (u.displayName||u.email); authBadge.style.background='var(--gold)'; authBadge.style.color='#000'; }
+  else{ authBadge.textContent='⚫ Guest • Click to Login'; authBadge.style.background=''; authBadge.style.color=''; }
+  refreshWallet();
+});
+
+// ---------- ROOMS ----------
+function genCode(){ return 'HEAD-'+Math.random().toString(36).substring(2,6).toUpperCase(); }
+let currentRoomCode = null;
+let unsubRoom = null;
+let isHost = false;
+let roomStake = 1000;
+
+async function createRoom(){
+  const stake = parseInt(document.getElementById('stakeSel').value);
+  if(auth.currentUser && myCredits < stake){ alert('Not enough credits'); return; }
+  const code = genCode();
+  const ref = doc(db,"headball_rooms",code);
+  await setDoc(ref,{
+    code, stake, pot: stake*2,
+    host: auth.currentUser?auth.currentUser.uid:'guest_'+Date.now(),
+    hostName: auth.currentUser?(auth.currentUser.displayName||auth.currentUser.email):'Guest',
+    guest: null, guestName: null,
+    status: 'waiting',
+    createdAt: serverTimestamp(),
+    ball:{x:450,y:200,vx:0,vy:0},
+    score:{gold:0,black:0}
+  });
+  currentRoomCode = code; isHost=true;
+  document.getElementById('roomInput').value=code;
+  listenRoom(code);
+  document.getElementById('log').textContent='Room '+code+' created - stake '+stake+' - waiting opponent';
+  // deduct host stake
+  if(auth.currentUser){ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-stake)},{merge:true}); refreshWallet(); }
+}
+async function joinRoom(){
+  const code = (document.getElementById('roomInput').value||'').trim().toUpperCase();
+  if(!code) return alert('Enter room code');
+  const stake = parseInt(document.getElementById('stakeSel').value);
+  const ref = doc(db,"headball_rooms",code);
+  const snap = await getDoc(ref);
+  if(!snap.exists()) return alert('Room not found');
+  const data = snap.data();
+  if(data.guest) return alert('Room full');
+  if(auth.currentUser && myCredits < (data.stake||stake)){ alert('Not enough credits'); return; }
+  await updateDoc(ref,{
+    guest: auth.currentUser?auth.currentUser.uid:'guest_'+Date.now(),
+    guestName: auth.currentUser?(auth.currentUser.displayName||auth.currentUser.email):'Guest2',
+    status: 'playing'
+  });
+  currentRoomCode=code; isHost=false;
+  listenRoom(code);
+  if(auth.currentUser){ await setDoc(doc(db,"ethan_credits",auth.currentUser.uid),{credits: increment(-data.stake)},{merge:true}); refreshWallet(); }
+}
+function listenRoom(code){
+  if(unsubRoom) unsubRoom();
+  const ref = doc(db,"headball_rooms",code);
+  unsubRoom = onSnapshot(ref,(snap)=>{
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(d.status==='playing'){
+      document.getElementById('log').textContent='Match '+code+' live • Pot '+(d.pot||0)+' • 90% to winner';
+      if(!gameRunning) startGame({mode:'online', code, stake:d.stake, isHost});
+    }
+    if(d.ball && !isHost){
+      // soft sync for guest ball once per second
+      if(Math.random()<0.15){ ball.x=d.ball.x; ball.y=d.ball.y; ball.vx=d.ball.vx; ball.vy=d.ball.vy; }
+    }
+  });
+}
+async function leaveRoom(){
+  if(unsubRoom) unsubRoom();
+  currentRoomCode=null;
+  document.getElementById('log').textContent='Left room';
+  document.getElementById('overlay').style.display='flex';
+}
+
+// payout
+async function payoutWinner(winnerSide){
+  if(!currentRoomCode) return;
+  try{
+    const ref = doc(db,"headball_rooms",currentRoomCode);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const data = snap.data();
+    const pot = data.pot|| (data.stake*2);
+    const winAmount = Math.floor(pot*0.9);
+    const winnerUid = winnerSide==='gold'? data.host : data.guest;
+    if(winnerUid && !String(winnerUid).startsWith('guest_')){
+      await setDoc(doc(db,"ethan_credits",winnerUid),{credits: increment(winAmount)},{merge:true});
+    }
+    await updateDoc(ref,{status:'finished', winner:winnerSide, finishedAt: serverTimestamp()});
+    refreshWallet();
+  }catch(e){ console.log('payout err',e); }
+}
+
+// ---------- GAME ----------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const sGoldEl = document.getElementById('sGold');
+const sBlackEl = document.getElementById('sBlack');
+const timerEl = document.getElementById('timer');
+const overlayEl = document.getElementById('overlay');
+
+let gameRunning=false, gameMode='local', gameTime=60, lastT=0;
+let cpuEnabled=false;
+let scoreG=0, scoreB=0;
+
+const GROUND = 480;
+const playerG = {x:220,y:GROUND, vx:0, vy:0, w:48, h:70, headR:36, onGround:true, kickCooldown:0, color:'#FFD700'};
+const playerB = {x:680,y:GROUND, vx:0, vy:0, w:48, h:70, headR:36, onGround:true, kickCooldown:0, color:'#111'};
+let ball = {x:450,y:220,vx:0,vy:0,r:19};
+
+const keys = {};
+window.addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; keys[e.key]=true; if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault(); });
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; keys[e.key]=false; });
+
+document.querySelectorAll('.mbtn').forEach(b=>{
+  const k=b.dataset.k;
+  const set = (v)=>{ keys[k]=v; keys[k.toLowerCase()]=v; };
+  b.addEventListener('touchstart',e=>{ e.preventDefault(); set(true); },{passive:false});
+  b.addEventListener('touchend',e=>{ e.preventDefault(); set(false); },{passive:false});
+  b.addEventListener('mousedown',()=>set(true));
+  b.addEventListener('mouseup',()=>set(false));
+});
+
+function resetRound(){
+  playerG.x=220; playerG.y=GROUND; playerG.vx=0; playerG.vy=0;
+  playerB.x=680; playerB.y=GROUND; playerB.vx=0; playerB.vy=0;
+  ball.x=450; ball.y=120; ball.vx=(Math.random()-0.5)*3; ball.vy=0;
+}
+
+function startGame(opts={}){
+  gameMode = opts.mode||'local';
+  cpuEnabled = (opts.mode==='cpu');
+  scoreG=0; scoreB=0;
+  gameTime=60;
+  resetRound();
+  gameRunning=true;
+  overlayEl.style.display='none';
+  lastT=performance.now();
+  requestAnimationFrame(loop);
+  roomStake = opts.stake||parseInt(document.getElementById('stakeSel').value);
+}
+
+function endGame(){
+  gameRunning=false;
+  overlayEl.style.display='flex';
+  let msg = scoreG===scoreB? 'DRAW! 🤝' : (scoreG>scoreB? 'GOLDEN WINS! 🏆' : 'BLACK WINS! 🏆');
+  document.getElementById('log').innerHTML = '<div style="font-size:28px;font-weight:900;margin:10px">'+msg+' '+scoreG+'-'+scoreB+'</div><div>Stake '+(roomStake||1000)+' pot '+(roomStake*2)+' winner gets 90%</div>';
+  const winner = scoreG>scoreB? 'gold' : (scoreB>scoreG? 'black' : null);
+  if(winner && currentRoomCode) payoutWinner(winner);
+}
+
+function physics(dt){
+  const grav=0.52, fric=0.82, maxSpeed=6.5;
+  [[playerG, {left:'a', right:'d', up:'w', kick:'f', kick2:'k'}],[playerB,{left:'ArrowLeft', right:'ArrowRight', up:'ArrowUp', kick:' ', kick2:'Enter'}]].forEach(([p,c])=>{
+    let ax=0;
+    if(keys[c.left]||keys[c.left.toLowerCase()]) ax-=0.85;
+    if(keys[c.right]||keys[c.right.toLowerCase()]) ax+=0.85;
+    p.vx+=ax; p.vx*=0.86;
+    if(Math.abs(p.vx)>maxSpeed) p.vx=Math.sign(p.vx)*maxSpeed;
+    p.vy+=grav;
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.y>=GROUND){ p.y=GROUND; p.vy=0; p.onGround=true; } else p.onGround=false;
+    if(p.x<50) p.x=50; if(p.x>850) p.x=850;
+    if(p.kickCooldown>0) p.kickCooldown-=dt;
+  });
+
+  // CPU simple
+  if(cpuEnabled){
+    const target = ball.x;
+    if(playerB.x < target-20) keys['ArrowRight']=true; else keys['ArrowRight']=false;
+    if(playerB.x > target+20) keys['ArrowLeft']=true; else keys['ArrowLeft']=false;
+    if(Math.abs(ball.x-playerB.x)<60 && playerB.onGround && Math.random()<0.08) playerB.vy=-12;
+    if(Math.abs(ball.x-playerB.x)<70) keys[' ']=true; else keys[' ']=false;
+  }
+
+  // jump
+  if((keys['w']||keys['W']) && playerG.onGround){ playerG.vy=-13.5; playerG.onGround=false; }
+  if((keys['ArrowUp']) && playerB.onGround){ playerB.vy=-13.5; playerB.onGround=false; }
+
+  // ball physics
+  ball.vy+=0.28;
+  ball.x+=ball.vx; ball.y+=ball.vy;
+  ball.vx*=0.998;
+  // ground bounce
+  if(ball.y+ball.r >= GROUND+12){
+    ball.y=GROUND+12-ball.r;
+    ball.vy*=-0.62;
+    ball.vx*=0.92;
+    if(Math.abs(ball.vy)<0.8) ball.vy=0;
+  }
+  // walls, goals: allow goal at x<28 or >872 and y between
+  const goalTop = GROUND-140, goalBottom = GROUND+10;
+  const inGoalY = ball.y>goalTop && ball.y<goalBottom;
+
+  if(ball.x-ball.r < 22){
+    if(inGoalY){
+      // goal for black? left goal -> black concedes, gold scores
+      scoreG++; sGoldEl.textContent='GOLD '+scoreG; resetRound();
+    }else{
+      ball.x=22+ball.r; ball.vx*=-0.8;
+    }
+  }
+  if(ball.x+ball.r > 878){
+    if(inGoalY){
+      scoreB++; sBlackEl.textContent='BLACK '+scoreB; resetRound();
+    }else{
+      ball.x=878-ball.r; ball.vx*=-0.8;
+    }
+  }
+  if(ball.y-ball.r < 0){ ball.y=ball.r; ball.vy*=-0.5; }
+
+  // head collisions
+  [playerG, playerB].forEach(p=>{
+    const hx=p.x, hy=p.y-55;
+    let dx=ball.x-hx, dy=ball.y-hy;
+    let dist=Math.hypot(dx,dy);
+    let minD=p.headR+ball.r;
+    if(dist<minD && dist>0.01){
+      const nx=dx/dist, ny=dy/dist;
+      // push out
+      ball.x=hx+nx*minD; ball.y=hy+ny*minD;
+      // velocity impulse
+      let relVx = ball.vx - p.vx;
+      let relVy = ball.vy - p.vy;
+      let dot = relVx*nx + relVy*ny;
+      if(dot<0){
+        ball.vx -= dot*nx*1.4;
+        ball.vy -= dot*ny*1.4;
+      }
+      ball.vx+=nx*2.5 + p.vx*0.4;
+      ball.vy+=ny*2.5;
+      // kick
+      const isKickGold = p===playerG && (keys['f']||keys['k']||keys['K']);
+      const isKickBlack = p===playerB && (keys[' ']||keys['Enter']);
+      if((isKickGold||isKickBlack) && p.kickCooldown<=0){
+        ball.vx+=nx*11+ (p===playerG? 3: -3);
+        ball.vy+=ny*6 -3;
+        p.kickCooldown=12;
+      }
+    }
+    // feet collision simple
+    if(Math.abs(ball.x-p.x)<28 && Math.abs(ball.y-p.y)<30){
+      ball.vx+=p.vx*0.7 + (Math.random()-0.5)*2;
+      ball.vy-=2;
+    }
+  });
+
+  // sync to firestore if host
+  if(currentRoomCode && isHost && Math.random()<0.12){
+    const ref = doc(db,"headball_rooms",currentRoomCode);
+    updateDoc(ref,{ball:{x:Math.round(ball.x), y:Math.round(ball.y), vx:ball.vx, vy:ball.vy}, score:{gold:scoreG, black:scoreB}}).catch(()=>{});
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // pitch
+  ctx.strokeStyle='rgba(255,215,0,.22)'; ctx.lineWidth=2;
+  ctx.strokeRect(20,20,860,GROUND-20);
+  ctx.beginPath(); ctx.moveTo(450,20); ctx.lineTo(450,GROUND); ctx.stroke();
+  ctx.beginPath(); ctx.arc(450,GROUND/2+10,70,0,Math.PI*2); ctx.stroke();
+  // goals
+  ctx.save(); ctx.shadowColor='#FFD700'; ctx.shadowBlur=18;
+  ctx.fillStyle='#111'; ctx.fillRect(0,GROUND-140,22,150);
+  ctx.fillRect(878,GROUND-140,22,150);
+  ctx.strokeStyle='#FFD700'; ctx.lineWidth=3; ctx.strokeRect(0,GROUND-140,22,150); ctx.strokeRect(878,GROUND-140,22,150);
+  // net
+  ctx.strokeStyle='rgba(255,215,0,.28)'; ctx.lineWidth=1;
+  for(let y=GROUND-140;y<GROUND+10;y+=12){ ctx.beginPath(); ctx.moveTo(2,y); ctx.lineTo(20,y+6); ctx.stroke(); }
+  for(let y=GROUND-140;y<GROUND+10;y+=12){ ctx.beginPath(); ctx.moveTo(898,y); ctx.lineTo(880,y+6); ctx.stroke(); }
+  ctx.restore();
+  // ground
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,GROUND,900,40);
+  ctx.fillStyle='rgba(255,215,0,.2)'; ctx.fillRect(0,GROUND,900,4);
+
+  function drawPlayer(p){
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,.5)'; ctx.beginPath(); ctx.ellipse(p.x,GROUND+12,22,6,0,0,Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle=p.color===' #FFD700' ? '#FFD700' : p.color;
+    ctx.fillStyle=p.color;
+    if(p.color==='#FFD700'){ ctx.shadowColor='#FFD700'; ctx.shadowBlur=14; }
+    else { ctx.shadowColor='#FFD700'; ctx.shadowBlur=4; }
+    ctx.beginPath(); ctx.roundRect(p.x-18,p.y-50,36,50,10); ctx.fill();
+    ctx.shadowBlur=0;
+    // head
+    ctx.fillStyle=p.color==='#FFD700'?'#FFD700':'#0a0a0a';
+    ctx.strokeStyle='#FFD700'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(p.x,p.y-55,p.headR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // eyes
+    ctx.fillStyle=p.color==='#FFD700'?'#000':'#FFD700';
+    ctx.beginPath(); ctx.arc(p.x-10,p.y-60,5,0,Math.PI*2); ctx.arc(p.x+10,p.y-60,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(p.x-9,p.y-61,1.5,0,Math.PI*2); ctx.arc(p.x+11,p.y-61,1.5,0,Math.PI*2); ctx.fill();
+    // kick indicator
+    if(p.kickCooldown>0){ ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(p.x+(p===playerG?25:-25),p.y-35,4,0,Math.PI*2); ctx.fill(); }
+  }
+  drawPlayer(playerG); drawPlayer(playerB);
+
+  // ball
+  ctx.save(); ctx.shadowColor='#FFD700'; ctx.shadowBlur=20;
+  ctx.fillStyle='#fff'; ctx.strokeStyle='#FFD700'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  // ball pattern
+  ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(ball.x,ball.y,6,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(ball.x,ball.y,12,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+
+function loop(now){
+  if(!gameRunning) return;
+  const dt = Math.min(32, now-lastT)/16.66;
+  lastT=now;
+  physics(dt);
+  draw();
+  gameTime -= dt*0.01666;
+  if(gameTime<=0){ gameTime=0; timerEl.textContent='0.0s'; endGame(); return; }
+  timerEl.textContent=gameTime.toFixed(1)+'s';
+  requestAnimationFrame(loop);
+}
+
+// first frame for guaranteed play
+draw();
+
+document.getElementById('playLocal').onclick=()=>startGame({mode:'local'});
+document.getElementById('playVsCpu').onclick=()=>startGame({mode:'cpu'});
+document.getElementById('playOnline').onclick=()=>createRoom();
+document.getElementById('localBtn').onclick=()=>startGame({mode:'local'});
+document.getElementById('createBtn').onclick=()=>createRoom();
+document.getElementById('joinBtn').onclick=()=>joinRoom();
+document.getElementById('leaveBtn').onclick=()=>leaveRoom();
+document.getElementById('buyBtn').onclick=()=>{
+  const amt=parseInt(document.getElementById('stakeSel').value)||1000;
+  buyCredits(amt);
+};
+document.getElementById('stakeSel').addEventListener('change',e=>{ roomStake=parseInt(e.target.value); });
+
+</script>
+</body>
+</html>
