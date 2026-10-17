@@ -1,6 +1,28 @@
-
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ETHAN EMPIRE - 12 Games + Withdraw</title>
+<script>
+// GLOBAL SAFE FUNCTIONS - Must be first
+function safeCredits(val, fallback){
+  if(fallback===undefined) fallback=500;
+  if(val===undefined||val===null) return fallback;
+  let s=String(val).trim().toLowerCase();
+  if(s==='undefined'||s==='nan'||s==='' ) return fallback;
+  let n=parseInt(val);
+  if(isNaN(n)) return fallback;
+  return n;
+}
+function updateWallet(credits){
+  credits=safeCredits(credits,500);
+  let el=document.getElementById('creditBal'); if(el) el.innerText=credits;
+  let el2=document.getElementById('nairaBal'); if(el2) el2.innerText=(credits*0.1).toFixed(0);
+}
+(function(){
+  let v=localStorage.getItem('ethan_credits');
+  if(v===null||String(v).toLowerCase()==='undefined'||String(v).toLowerCase()==='nan'||v.trim()===''||isNaN(parseInt(v))){
+    localStorage.setItem('ethan_credits','500');
+  }
+})();
+</script>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
@@ -8,31 +30,27 @@
 <h1>👑 ETHAN EMPIRE - 12 GAMES 👑</h1>
 <div class="container">
 <div class="auth-bar"><span id="authInfo">Checking Gmail...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
-<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Local</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
-
-<div class="card"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw to Bank</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('admin_withdrawals.html')">🔐 Admin Panel</button><button class="btn-s" onclick="buyCredits()">🛒 Buy Credits</button></div><div style="font-size:10px;opacity:.7;margin-top:6px">Min withdraw 5000 credits = ₦500 • Paid within 24h • Admin sees all requests</div></div>
-
-<h3>♟ BOARD - Most Money</h3>
+<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Local 500</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
+<div class="card"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw to Bank</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('admin_withdrawals.html')">🔐 Admin Panel</button><button class="btn-s" onclick="buyCredits()">🛒 Buy Credits</button></div><div style="font-size:10px;opacity:.7;margin-top:6px">Min withdraw 5000 credits = ₦500 • Paid within 24h</div></div>
+<h3>♟ BOARD</h3>
 <div class="grid">
-<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b><br><small>Black vs Golden</small><br><span class="badge hot">HOT</span></div>
-<div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b><br><small>Naija Checkers</small><br><span class="badge hot">HOT</span></div>
-<div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED NEAT</small><br><span class="badge hot">VIRAL</span></div>
-<div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED NEAT</small><br><span class="badge">Culture</span></div>
-<div class="game-card" onclick="go('scrabble.html')"><div style="font-size:30px">🔤</div><b>SCRABBLE</b><br><small>Word Bingo</small><br><span class="badge">Word</span></div>
-<div class="game-card" onclick="go('snake.html')"><div style="font-size:30px">🐍</div><b>SNAKE</b><br><small>FIXED NEAT</small><br><span class="badge">Kids</span></div>
+<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b></div>
+<div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b></div>
+<div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED</small></div>
+<div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED</small></div>
+<div class="game-card" onclick="go('scrabble.html')"><div style="font-size:30px">🔤</div><b>SCRABBLE</b></div>
+<div class="game-card" onclick="go('snake.html')"><div style="font-size:30px">🐍</div><b>SNAKE</b><br><small>FIXED</small></div>
 </div>
-
 <h3>⚽ SOCCER + RACING + CARDS</h3>
 <div class="grid">
-<div class="game-card" onclick="go('penalty.html')"><div style="font-size:30px">🥅</div><b>PENALTY</b><br><small>9 zones</small></div>
-<div class="game-card" onclick="go('soccer.html')"><div style="font-size:30px">⚽</div><b>FREE KICK</b><br><small>Wind + Power</small><br><span class="badge hot">NEW</span></div>
-<div class="game-card" onclick="go('headball.html')"><div style="font-size:30px">🤾</div><b>HEAD SOCCER</b><br><small>60s Match</small><br><span class="badge hot">NEW</span></div>
-<div class="game-card" onclick="go('racing.html')"><div style="font-size:30px">🏁</div><b>RACING</b><br><small>3 Laps</small><br><span class="badge hot">NEW</span></div>
-<div class="game-card" onclick="go('whot.html')"><div style="font-size:30px">🃏</div><b>WHOT</b><br><small>FIXED</small><br><span class="badge hot">ADDICT</span></div>
-<div class="game-card" onclick="go('quiz.html')"><div style="font-size:30px">🧠</div><b>QUIZ</b><br><small>Trivia</small></div>
+<div class="game-card" onclick="go('penalty.html')"><div style="font-size:30px">🥅</div><b>PENALTY</b></div>
+<div class="game-card" onclick="go('soccer.html')"><div style="font-size:30px">⚽</div><b>FREE KICK</b></div>
+<div class="game-card" onclick="go('headball.html')"><div style="font-size:30px">🤾</div><b>HEAD SOCCER</b></div>
+<div class="game-card" onclick="go('racing.html')"><div style="font-size:30px">🏁</div><b>RACING</b></div>
+<div class="game-card" onclick="go('whot.html')"><div style="font-size:30px">🃏</div><b>WHOT</b></div>
+<div class="game-card" onclick="go('quiz.html')"><div style="font-size:30px">🧠</div><b>QUIZ</b></div>
 </div>
-
-<div class="card" style="font-size:10px;opacity:.7">Paystack LIVE • Firebase chessbyethan • 12 games • Withdraw auto-deducts • Admin approves • Winner 90%</div>
+<div class="card" style="font-size:10px;opacity:.7">Paystack LIVE • Firebase chessbyethan • 12 games</div>
 </div>
 <script type="module">
 import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -47,59 +65,42 @@ onAuthStateChanged(auth,async(u)=>{
   currentUser=u; window._currentUser=u;
   if(u){
     authInfo.innerHTML=u.displayName+' ✓'; authBtn.textContent='Sign Out';
-    // Load cloud credits
     try{
       let snap=await getDoc(doc(db,'chessbyethan_users',u.uid));
-      let credits;
-      let localCred = safeCredits(localStorage.getItem('ethan_credits'), 500);
-      if(snap.exists() && typeof snap.data().credits === 'number' && !isNaN(snap.data().credits)){
-        credits=snap.data().credits;
-        localStorage.setItem('ethan_credits',credits);
-      }else if(snap.exists()){
-        credits=localCred;
-        await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits},{merge:true});
+      let credits=500;
+      let localCred=safeCredits(localStorage.getItem('ethan_credits'),500);
+      if(snap.exists()){
+        let data=snap.data();
+        if(data.credits!==undefined && data.credits!==null && !isNaN(parseInt(data.credits))){
+          credits=safeCredits(data.credits,500);
+        }else{
+          credits=localCred;
+          await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits},{merge:true});
+        }
       }else{
         credits=localCred;
         await setDoc(doc(db,'chessbyethan_users',u.uid),{displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,createdAt:serverTimestamp(),lastLogin:serverTimestamp()},{merge:true});
       }
+      localStorage.setItem('ethan_credits',String(credits));
       updateWallet(credits);
-      document.getElementById('syncStatus').innerText='Cloud Synced ✓';
-    }catch(e){ console.log(e); let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c); }
+      let st=document.getElementById('syncStatus'); if(st) st.innerText='Cloud Synced ✓ '+credits;
+    }catch(e){ console.error(e); let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c); }
   }else{
     authInfo.textContent='Not signed - Local only'; authBtn.textContent='Sign Gmail';
     let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c);
-    document.getElementById('syncStatus').innerText='Local only - Sign Gmail to sync';
+    let st=document.getElementById('syncStatus'); if(st) st.innerText='Local only - Sign Gmail to sync';
   }
 });
 </script>
 <script>
 const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
-
-function safeCredits(val, fallback=500){
-  let n = parseInt(val);
-  if(isNaN(n) || val === undefined || val === null || String(val).toLowerCase()==='undefined' || String(val).toLowerCase()==='nan') return fallback;
-  return n;
-}
-function updateWallet(credits){
-  credits = safeCredits(credits, 500);
-  document.getElementById('creditBal').innerText=credits;
-  document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0);
-}
-function clearBadStorage(){
-  let v = localStorage.getItem('ethan_credits');
-  if(v===null || v==='undefined' || v==='NaN' || isNaN(parseInt(v))){
-    localStorage.setItem('ethan_credits','500');
-  }
-}
-clearBadStorage();
-
 function buyCredits(){
   let n=prompt('Buy: 500,1000,2500,5000 Naira (e.g. 500)'); if(!n)return; n=parseInt(n); if(![500,1000,2500,5000].includes(n)) return alert('Choose 500/1000/2500/5000');
   let c=n*10; let email=window._currentUser?window._currentUser.email:'player@ethan.com';
   let handler=PaystackPop.setup({key:PAYSTACK_KEY,email:email,amount:n*100,currency:'NGN',ref:'EMPIRE_'+Date.now(),callback:async function(r){
-    let current=safeCredits(localStorage.getItem('ethan_credits'),0); let newC=current+c; localStorage.setItem('ethan_credits',newC); updateWallet(newC);
+    let current=safeCredits(localStorage.getItem('ethan_credits'),0); let newC=current+c; localStorage.setItem('ethan_credits',String(newC)); updateWallet(newC);
     if(window._currentUser && window._fb){
-      try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); document.getElementById('syncStatus').innerText='Cloud Synced ✓ +'+c; }catch(e){}
+      try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); let st=document.getElementById('syncStatus'); if(st) st.innerText='Cloud Synced ✓ +'+c; }catch(e){}
     }
     alert('Success! +'+c+' credits Ref '+r.reference);
   }});
