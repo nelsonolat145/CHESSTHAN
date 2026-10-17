@@ -23,15 +23,67 @@ function updateWallet(credits){
     localStorage.setItem('ethan_credits','500');
   }
 })();
+// HOME + FREE MODE LOGIC
+function goHome(){
+  // Works both on localhost and github pages
+  if(window.location.href.includes('github.io')){
+    window.location.href='/CHESSTHAN/';
+  } else {
+    window.location.href='data:text/html;base64,dGVtcA==';
+  }
+}
+// Returns true only if real money game
+function shouldDeductStake(){
+  let mode = (localStorage.getItem('ethan_game_mode') || window.gameMode || window.currentMode || '').toString().toLowerCase();
+  if(mode.includes('ai') || mode.includes('bot') || mode.includes('computer') || mode.includes('local') || mode.includes('2p') || mode.includes('2_player') || mode.includes('friend') || mode.includes('practice') || mode.includes('offline') || mode.includes('pass')) return false;
+  return true;
+}
 </script>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center}h1{font-size:24px;text-shadow:0 0 15px #FFD700} .container{max-width:800px;margin:0 auto} .card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px 0;text-align:left} .card.center{text-align:center} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media(min-width:600px){.grid{grid-template-columns:1fr 1fr 1fr}} .game-card{background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:2px solid #FFD700;border-radius:14px;padding:12px;cursor:pointer;text-align:center} .game-card:hover{transform:translateY(-3px);box-shadow:0 0 20px #FFD700} .wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;font-weight:900} .badge{background:#222;border:1px solid #444;padding:3px 8px;border-radius:10px;font-size:8px} .badge.hot{background:#c0392b;color:#fff} .auth-bar{display:flex;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:10px;padding:8px;margin-bottom:8px} .action-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0} table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid #333;padding:6px;text-align:left} th{background:#222;color:#FFD700} input{width:100%;padding:10px;background:#222;border:1px solid #444;color:#fff;border-radius:8px;margin-top:6px;box-sizing:border-box}</style></head><body>
+<style>
+body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center}
+h1{font-size:24px;text-shadow:0 0 15px #FFD700} 
+.container{max-width:800px;margin:0 auto} 
+.card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px 0;text-align:left} 
+.card.center{text-align:center} 
+.btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} 
+.btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} 
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} 
+@media(min-width:600px){.grid{grid-template-columns:1fr 1fr 1fr}} 
+.game-card{background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:2px solid #FFD700;border-radius:14px;padding:12px;cursor:pointer;text-align:center} 
+.game-card:hover{transform:translateY(-3px);box-shadow:0 0 20px #FFD700} 
+.wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;align-items:center;font-weight:900;gap:10px} 
+.home-btn{background:#000;color:#FFD700;border:2px solid #000;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer;font-size:14px;box-shadow:0 0 10px rgba(0,0,0,0.3)}
+.home-btn:hover{background:#111;transform:scale(1.05)}
+.badge{background:#222;border:1px solid #444;padding:3px 8px;border-radius:10px;font-size:8px} 
+.badge.hot{background:#c0392b;color:#fff} 
+.auth-bar{display:flex;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:10px;padding:8px;margin-bottom:8px} 
+.action-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0} 
+table{width:100%;border-collapse:collapse;font-size:12px} th,td{border:1px solid #333;padding:6px;text-align:left} th{background:#222;color:#FFD700} 
+input{width:100%;padding:10px;background:#222;border:1px solid #444;color:#fff;border-radius:8px;margin-top:6px;box-sizing:border-box}
+</style></head><body>
 <h1>👑 ETHAN EMPIRE - 12 GAMES 👑</h1>
 <div class="container">
 <div class="auth-bar"><span id="authInfo">Checking Gmail...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
-<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Checking cloud...</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
+
+<!-- FIXED WALLET WITH HOME BUTTON -->
+<div class="card wallet">
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="home-btn" onclick="goHome()">🏠 HOME</button>
+    <div style="text-align:left">
+      <div style="font-size:10px">SHARED WALLET - Real Money</div>
+      <div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div>
+      <div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div>
+      <div style="font-size:9px;margin-top:4px" id="syncStatus">Checking cloud...</div>
+    </div>
+  </div>
+  <div style="text-align:right">
+    <button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br>
+    <button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button>
+  </div>
+</div>
 
 <div class="card center"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('leaderboard.html')">🏆 Leaderboard</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #00ff88" onclick="go('referral.html')">👥 Invite +100</button></div>
 <div style="font-size:10px;opacity:.7;margin-top:6px">Invite friend = you both get 100 credits = ₦10 • Min withdraw 5000 credits = ₦500</div>
@@ -47,7 +99,7 @@ function updateWallet(credits){
 
 <h3>♟ BOARD - Most Money</h3>
 <div class="grid">
-<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b><br><small>Black vs Golden</small><br><span class="badge hot">HOT</span></div>
+<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟</div><b>CHESS</b><br><small>Black vs Golden</small><br><span class="badge hot">HOT</span></div>
 <div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b><br><small>Naija Checkers</small><br><span class="badge hot">HOT</span></div>
 <div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED</small><br><span class="badge hot">VIRAL</span></div>
 <div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED</small><br><span class="badge">Culture</span></div>
@@ -89,26 +141,20 @@ onAuthStateChanged(auth,async(u)=>{
       if(snap.exists()){
         let data=snap.data();
         credits = (data.credits!==undefined && data.credits!==null && !isNaN(parseInt(data.credits))) ? safeCredits(data.credits,500) : localCred);
-        // Ensure referralCode exists
         if(!data.referralCode){
           await setDoc(doc(db,'chessbyethan_users',u.uid),{referralCode:referralCode},{merge:true});
         }else{
           referralCode=data.referralCode;
         }
-        // Handle referral bonus for new user (only once)
         if(!data.referredBy && refCodeParam && refCodeParam!==referralCode){
-          // Find referrer
           let q=query(collection(db,'chessbyethan_users'),where('referralCode','==',refCodeParam),limit(1));
           let qs=await getDocs(q);
           if(!qs.empty){
             let refDoc=qs.docs[0];
             let refUid=refDoc.id;
-            // Give both 100 credits, mark referred
             credits+=100;
             await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits,referredBy:refCodeParam,referredByUid:refUid,referralCode:referralCode},{merge:true});
-            // Give referrer 100
             await updateDoc(doc(db,'chessbyethan_users',refUid),{credits: increment(100), referralCount: increment(1), referralEarned: increment(100)});
-            // Log referral
             await setDoc(doc(collection(db,'ethan_referrals')),{from:u.uid,fromEmail:u.email,to:refUid,code:refCodeParam,createdAt:serverTimestamp()});
             alert('🎉 Referral bonus! +100 credits from '+refCodeParam);
           }
@@ -119,7 +165,6 @@ onAuthStateChanged(auth,async(u)=>{
         let rParam=getRefFromUrl();
         if(rParam && rParam!==referralCode){ payload.referredBy=rParam; }
         await setDoc(doc(db,'chessbyethan_users',u.uid),payload,{merge:true});
-        // If referred, give referrer bonus (same logic as above)
         if(rParam && rParam!==referralCode){
           let q=query(collection(db,'chessbyethan_users'),where('referralCode','==',rParam),limit(1));
           let qs=await getDocs(q);
@@ -135,7 +180,6 @@ onAuthStateChanged(auth,async(u)=>{
       localStorage.setItem('ethan_credits',String(credits));
       updateWallet(credits);
       document.getElementById('syncStatus').innerText='Cloud Synced ✓ '+credits+' • Ref: '+referralCode;
-      // Show referral card
       showReferral(referralCode, u.uid);
       loadLeaderboardPreview();
     }catch(e){ console.error(e); let c=safeCredits(localStorage.getItem('ethan_credits'),500); updateWallet(c); }
@@ -155,7 +199,6 @@ async function showReferral(code, uid){
     document.getElementById('refCount').innerText=count;
     document.getElementById('refEarned').innerText=earned;
     let link=window.location.origin+window.location.pathname+'?ref='+code;
-    // For github pages, pathname includes /CHESSTHAN/
     if(!link.includes('CHESSTHAN')) link='https://nelsonolat145.github.io/CHESSTHAN/?ref='+code;
     else link='https://nelsonolat145.github.io/CHESSTHAN/?ref='+code;
     document.getElementById('refLink').value=link;
