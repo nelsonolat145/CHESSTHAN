@@ -51,9 +51,13 @@ onAuthStateChanged(auth,async(u)=>{
     try{
       let snap=await getDoc(doc(db,'chessbyethan_users',u.uid));
       let credits;
-      if(snap.exists()){
+      if(snap.exists() && typeof snap.data().credits === 'number'){
         credits=snap.data().credits;
         localStorage.setItem('ethan_credits',credits);
+      }else if(snap.exists() && snap.data().credits===undefined){
+        // doc exists but no credits field yet - use local or 500
+        credits=parseInt(localStorage.getItem('ethan_credits')||'500');
+        await setDoc(doc(db,'chessbyethan_users',u.uid),{credits:credits},{merge:true});
       }else{
         credits=parseInt(localStorage.getItem('ethan_credits')||'500');
         await setDoc(doc(db,'chessbyethan_users',u.uid),{displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,createdAt:serverTimestamp(),lastLogin:serverTimestamp()},{merge:true});
