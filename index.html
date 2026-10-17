@@ -1,0 +1,88 @@
+
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETHAN EMPIRE - 12 Games + Withdraw</title>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">{"imports":{"firebase/app":"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js","firebase/auth":"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js","firebase/firestore":"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"}}</script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>body{background:#050505;color:#FFD700;font-family:system-ui;padding:10px;text-align:center}h1{font-size:24px;text-shadow:0 0 15px #FFD700} .container{max-width:750px;margin:0 auto} .card{background:#121212;border:1px solid #FFD700;border-radius:16px;padding:12px;margin:10px 0} .btn{background:#FFD700;color:#000;padding:10px;border:none;border-radius:10px;font-weight:900;width:100%;cursor:pointer;margin-top:6px} .btn-s{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;width:100%;cursor:pointer;margin-top:6px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px} @media(min-width:600px){.grid{grid-template-columns:1fr 1fr 1fr}} .game-card{background:linear-gradient(135deg,#1a1a1a,#0a0a0a);border:2px solid #FFD700;border-radius:14px;padding:12px;cursor:pointer} .game-card:hover{transform:translateY(-3px);box-shadow:0 0 20px #FFD700} .wallet{background:linear-gradient(135deg,#FFD700,#ff8c00);color:#000;border-radius:14px;padding:14px;display:flex;justify-content:space-between;font-weight:900} .badge{background:#222;border:1px solid #444;padding:3px 8px;border-radius:10px;font-size:8px} .badge.hot{background:#c0392b;color:#fff} .auth-bar{display:flex;justify-content:space-between;background:#111;border:1px solid #FFD700;border-radius:10px;padding:8px;margin-bottom:8px} .action-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}</style></head><body>
+<h1>👑 ETHAN EMPIRE - 12 GAMES 👑</h1>
+<div class="container">
+<div class="auth-bar"><span id="authInfo">Checking Gmail...</span><button id="authBtn" class="btn" style="width:auto;padding:6px 12px">Sign Gmail</button></div>
+<div class="card wallet"><div><div style="font-size:10px">SHARED WALLET - Real Money</div><div style="font-size:22px">🪙 <span id="creditBal">500</span> credits</div><div style="font-size:12px">₦<span id="nairaBal">50</span> • 1 credit = ₦0.1 • Winner 90%</div><div style="font-size:9px;margin-top:4px" id="syncStatus">Local</div></div><div><button class="btn" style="width:auto;padding:8px 12px;background:#000;color:#FFD700;border:1px solid #FFD700" onclick="buyCredits()">Buy Credits</button><br><button class="btn" style="width:auto;padding:6px 10px;background:#000;color:#FFD700;border:1px dashed #FFD700;margin-top:4px;font-size:10px" onclick="go('withdraw.html')">💰 Withdraw</button></div></div>
+
+<div class="card"><div class="action-grid"><button class="btn" onclick="go('withdraw.html')">💰 Withdraw to Bank</button><button class="btn" style="background:#000;color:#FFD700;border:2px solid #FFD700" onclick="go('admin_withdrawals.html')">🔐 Admin Panel</button><button class="btn-s" onclick="buyCredits()">🛒 Buy Credits</button></div><div style="font-size:10px;opacity:.7;margin-top:6px">Min withdraw 5000 credits = ₦500 • Paid within 24h • Admin sees all requests</div></div>
+
+<h3>♟ BOARD - Most Money</h3>
+<div class="grid">
+<div class="game-card" onclick="go('chess.html')"><div style="font-size:30px">♟️</div><b>CHESS</b><br><small>Black vs Golden</small><br><span class="badge hot">HOT</span></div>
+<div class="game-card" onclick="go('draughts.html')"><div style="font-size:30px">⛀</div><b>DRAUGHTS</b><br><small>Naija Checkers</small><br><span class="badge hot">HOT</span></div>
+<div class="game-card" onclick="go('ludo.html')"><div style="font-size:30px">🎲</div><b>LUDO</b><br><small>FIXED NEAT</small><br><span class="badge hot">VIRAL</span></div>
+<div class="game-card" onclick="go('ayo.html')"><div style="font-size:30px">🫘</div><b>AYO</b><br><small>FIXED NEAT</small><br><span class="badge">Culture</span></div>
+<div class="game-card" onclick="go('scrabble.html')"><div style="font-size:30px">🔤</div><b>SCRABBLE</b><br><small>Word Bingo</small><br><span class="badge">Word</span></div>
+<div class="game-card" onclick="go('snake.html')"><div style="font-size:30px">🐍</div><b>SNAKE</b><br><small>FIXED NEAT</small><br><span class="badge">Kids</span></div>
+</div>
+
+<h3>⚽ SOCCER + RACING + CARDS</h3>
+<div class="grid">
+<div class="game-card" onclick="go('penalty.html')"><div style="font-size:30px">🥅</div><b>PENALTY</b><br><small>9 zones</small></div>
+<div class="game-card" onclick="go('soccer.html')"><div style="font-size:30px">⚽</div><b>FREE KICK</b><br><small>Wind + Power</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('headball.html')"><div style="font-size:30px">🤾</div><b>HEAD SOCCER</b><br><small>60s Match</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('racing.html')"><div style="font-size:30px">🏁</div><b>RACING</b><br><small>3 Laps</small><br><span class="badge hot">NEW</span></div>
+<div class="game-card" onclick="go('whot.html')"><div style="font-size:30px">🃏</div><b>WHOT</b><br><small>FIXED</small><br><span class="badge hot">ADDICT</span></div>
+<div class="game-card" onclick="go('quiz.html')"><div style="font-size:30px">🧠</div><b>QUIZ</b><br><small>Trivia</small></div>
+</div>
+
+<div class="card" style="font-size:10px;opacity:.7">Paystack LIVE • Firebase chessbyethan • 12 games • Withdraw auto-deducts • Admin approves • Winner 90%</div>
+</div>
+<script type="module">
+import { initializeApp } from "firebase/app"; import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth"; import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+const cfg={apiKey:"AIzaSyAQYSVdL5TkoSuU5acoaZQ-LaBEqOhFBRI",authDomain:"chessbyethan.firebaseapp.com",projectId:"chessbyethan",storageBucket:"chessbyethan.firebasestorage.app",messagingSenderId:"109137562341",appId:"1:109137562341:web:d39cc1cae0201564e4e20c"};
+const app=initializeApp(cfg); const auth=getAuth(app); const db=getFirestore(app);
+window._fb={auth,db,doc,getDoc,setDoc,serverTimestamp,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged};
+const provider=new GoogleAuthProvider();
+const authInfo=document.getElementById('authInfo'); const authBtn=document.getElementById('authBtn');
+let currentUser=null;
+authBtn.onclick=async()=>{ if(currentUser) await signOut(auth); else try{await signInWithPopup(auth,provider)}catch(e){alert(e.message)} };
+onAuthStateChanged(auth,async(u)=>{
+  currentUser=u; window._currentUser=u;
+  if(u){
+    authInfo.innerHTML=u.displayName+' ✓'; authBtn.textContent='Sign Out';
+    // Load cloud credits
+    try{
+      let snap=await getDoc(doc(db,'chessbyethan_users',u.uid));
+      let credits;
+      if(snap.exists()){
+        credits=snap.data().credits;
+        localStorage.setItem('ethan_credits',credits);
+      }else{
+        credits=parseInt(localStorage.getItem('ethan_credits')||'500');
+        await setDoc(doc(db,'chessbyethan_users',u.uid),{displayName:u.displayName,email:u.email,photo:u.photoURL,credits:credits,createdAt:serverTimestamp(),lastLogin:serverTimestamp()},{merge:true});
+      }
+      updateWallet(credits);
+      document.getElementById('syncStatus').innerText='Cloud Synced ✓';
+    }catch(e){ console.log(e); let c=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c); }
+  }else{
+    authInfo.textContent='Not signed - Local only'; authBtn.textContent='Sign Gmail';
+    let c=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c);
+    document.getElementById('syncStatus').innerText='Local only - Sign Gmail to sync';
+  }
+});
+</script>
+<script>
+const PAYSTACK_KEY='pk_live_ec06b408bfb5c633263ee48346288df5df12df7f';
+function updateWallet(credits){ document.getElementById('creditBal').innerText=credits; document.getElementById('nairaBal').innerText=(credits*0.1).toFixed(0); }
+function buyCredits(){
+  let n=prompt('Buy: 500,1000,2500,5000 Naira (e.g. 500)'); if(!n)return; n=parseInt(n); if(![500,1000,2500,5000].includes(n)) return alert('Choose 500/1000/2500/5000');
+  let c=n*10; let email=window._currentUser?window._currentUser.email:'player@ethan.com';
+  let handler=PaystackPop.setup({key:PAYSTACK_KEY,email:email,amount:n*100,currency:'NGN',ref:'EMPIRE_'+Date.now(),callback:async function(r){
+    let current=parseInt(localStorage.getItem('ethan_credits')||'0'); let newC=current+c; localStorage.setItem('ethan_credits',newC); updateWallet(newC);
+    if(window._currentUser && window._fb){
+      try{ await window._fb.setDoc(window._fb.doc(window._fb.db,'chessbyethan_users',window._currentUser.uid),{credits:newC,lastBuy:window._fb.serverTimestamp()},{merge:true}); document.getElementById('syncStatus').innerText='Cloud Synced ✓ +'+c; }catch(e){}
+    }
+    alert('Success! +'+c+' credits Ref '+r.reference);
+  }});
+  handler.openIframe();
+}
+function go(f){ window.location.href=f; }
+let c0=parseInt(localStorage.getItem('ethan_credits')||'500'); updateWallet(c0);
+</script></body></html>
